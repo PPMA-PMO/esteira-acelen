@@ -1,0 +1,1321 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Esteira Acelen</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&display=swap">
+<style>
+/* Esteira Acelen — report da esteira de melhorias SAP, lido da exportação da lista
+   "Cadastro de Melhorias". Desenho PPMA v2 (design/tokens-v2.css): a faixa escura com o
+   degradê carrega a identidade uma vez, no topo; abaixo dela tudo é claro e tabular.
+   Estado é sempre chapado e sempre vem com glifo e palavra — nunca cor sozinha. */
+:root {
+  --font-display: Archivo, Arial, "Helvetica Neue", Helvetica, sans-serif;
+  --font-body: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  --font-mono: ui-monospace, Menlo, Monaco, "Cascadia Mono", monospace;
+
+  /* chrome: a faixa de identidade é escura nos dois temas */
+  --grad-hero: linear-gradient(112deg, #0E1113 0%, #123B3A 48%, #1F8177 100%);
+  --grad-brand: linear-gradient(90deg, #218A7F, #4FAF3E 60%, #8DC63F);
+  --grad-bar: linear-gradient(90deg, #1F8177, #8DC63F);
+  --grad-alert: linear-gradient(90deg, #9A4708, #D42A2A);
+  --on-dark-1: #FFFFFF; --on-dark-2: #C3CFD4; --on-dark-3: #9DB0BA;
+  --leaf: #AED47E; --lime: #8DC63F; --lime-ink: #0E1113;
+
+  /* superfícies de trabalho */
+  --bg: #F0F2F3; --surface: #FFFFFF; --surface-alt: #F7F8F9;
+  --border: #E1E5E7; --border-soft: #EDEFF0; --border-input: #D7DDE0; --track: #EDEFF0;
+  --ink-1: #060A0D; --ink-2: #547382; --ink-3: #5F717B; --ink-4: #8FA2AB;
+  --link: #207B6F; --link-hover: #155A52; --accent-soft: #E8F5F3;
+  --chip-on: #AED47E; --chip-on-ink: #0E1113;
+
+  /* estado */
+  --on-track: #3D7C21; --at-risk: #5C65C4; --critical: #D12828; --critical-bg: #D42A2A;
+  --delayed: #9A4708; --on-hold: #5F717B; --no-data: #8FA2AB;
+  --warn-bg: #FFF6E8; --warn-border: #F0D9B0; --warn-ink: #9A4708; --warn-ink-soft: #7A5320;
+  --good-bg: linear-gradient(100deg, #F5FAF3, #EAF4F3); --good-border: #D4E4DF;
+  --row-crit: linear-gradient(90deg, rgba(212, 42, 42, .07), rgba(212, 42, 42, 0) 30%);
+
+  /* etapas da esteira: um matiz só, do claro (início) ao escuro (concluído) */
+  --e1: #C4E5DE; --e2: #86C9BC; --e3: #45A396; --e4: #237D71; --e5: #10504A;
+  --e-fora: #C9D1D5; --heat: #45A396;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #14181A; --surface: #1D2225; --surface-alt: #181C1F;
+    --border: #2A3033; --border-soft: #252A2D; --border-input: #3A4145; --track: #2A3033;
+    --ink-1: #F2F5F6; --ink-2: #9DB0BA; --ink-3: #8A9BA5; --ink-4: #6E7F89;
+    --link: #5CC0B1; --link-hover: #8AD6CA; --accent-soft: #17302D;
+    --on-track: #72C150; --at-risk: #9CA2EE; --critical: #FF7B7B; --critical-bg: #C93434;
+    --delayed: #E59A57; --on-hold: #A3B4BD; --no-data: #76878F;
+    --warn-bg: #2A2216; --warn-border: #5A4524; --warn-ink: #F0B46A; --warn-ink-soft: #E3C089;
+    --good-bg: linear-gradient(100deg, #18241F, #152826); --good-border: #244039;
+    --row-crit: linear-gradient(90deg, rgba(255, 123, 123, .10), rgba(255, 123, 123, 0) 30%);
+    --e1: #2B4743; --e2: #3B6B63; --e3: #4E9286; --e4: #6DB8AA; --e5: #A6DDD2;
+    --e-fora: #3A4145; --heat: #4E9286;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #14181A; --surface: #1D2225; --surface-alt: #181C1F;
+  --border: #2A3033; --border-soft: #252A2D; --border-input: #3A4145; --track: #2A3033;
+  --ink-1: #F2F5F6; --ink-2: #9DB0BA; --ink-3: #8A9BA5; --ink-4: #6E7F89;
+  --link: #5CC0B1; --link-hover: #8AD6CA; --accent-soft: #17302D;
+  --on-track: #72C150; --at-risk: #9CA2EE; --critical: #FF7B7B; --critical-bg: #C93434;
+  --delayed: #E59A57; --on-hold: #A3B4BD; --no-data: #76878F;
+  --warn-bg: #2A2216; --warn-border: #5A4524; --warn-ink: #F0B46A; --warn-ink-soft: #E3C089;
+  --good-bg: linear-gradient(100deg, #18241F, #152826); --good-border: #244039;
+  --row-crit: linear-gradient(90deg, rgba(255, 123, 123, .10), rgba(255, 123, 123, 0) 30%);
+  --e1: #2B4743; --e2: #3B6B63; --e3: #4E9286; --e4: #6DB8AA; --e5: #A6DDD2;
+  --e-fora: #3A4145; --heat: #4E9286;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink-1); font: 400 13.5px/1.5 var(--font-body); -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.02em; text-wrap: balance; margin: 0; }
+p { margin: 0; }
+button, select, input { font: inherit; color: inherit; }
+a { color: var(--link); text-decoration: none; }
+a:hover { color: var(--link-hover); }
+:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.n, td, .num { font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1260px; margin: 0 auto; padding-left: max(clamp(16px, 3.4vw, 40px), env(safe-area-inset-left, 0px)); padding-right: max(clamp(16px, 3.4vw, 40px), env(safe-area-inset-right, 0px)); }
+
+/* ---------- faixa de identidade ---------- */
+.band { background: var(--grad-hero); color: var(--on-dark-1); position: relative; overflow: hidden; }
+.band :focus-visible { outline-color: var(--leaf); }
+.band .wrap { position: relative; z-index: 1; padding-block: 20px 22px; }
+.band-mark { position: absolute; right: -80px; top: -110px; width: 470px; height: 470px; opacity: .26; pointer-events: none; }
+.topo { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; }
+.lockup { display: flex; align-items: center; gap: 12px; }
+.lockup svg { width: 34px; height: 34px; flex: none; }
+.lk-rule { width: 1px; height: 30px; background: rgba(255, 255, 255, .28); }
+.lk-name { font: 700 19px/1 var(--font-display); letter-spacing: -0.01em; }
+.lk-sig { display: block; margin-top: 4px; font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--on-dark-3); }
+.topo-acts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sel-exp { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--on-dark-3); }
+.sel-exp select { background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .22); color: var(--on-dark-1); border-radius: 999px; padding: 6px 12px; }
+.sel-exp option { color: #060A0D; }
+.hero { margin-top: 26px; max-width: 760px; }
+.kicker { font-size: 12px; letter-spacing: .13em; text-transform: uppercase; color: var(--leaf); }
+.hero h1 { font-size: clamp(26px, 3.4vw, 34px); line-height: 1.12; margin-top: 8px; }
+.hero .sub { margin-top: 10px; font-size: 14.5px; color: var(--on-dark-2); max-width: 66ch; }
+.hero-acts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+.msg { margin-top: 12px; font-size: 13px; color: var(--leaf); }
+.msg.erro { color: #FFB4B4; }
+
+.btn { border-radius: 999px; padding: 9px 20px; border: 1px solid transparent; cursor: pointer; font-size: 13.5px; line-height: 1.2; white-space: nowrap; }
+.btn:disabled { opacity: .6; cursor: progress; }
+.btn-lime { background: var(--lime); color: var(--lime-ink); }
+.btn-lime:hover { background: #9CD150; }
+.btn-ghost { background: transparent; color: var(--on-dark-1); border-color: rgba(255, 255, 255, .38); }
+.btn-ghost:hover { background: rgba(255, 255, 255, .08); }
+.btn-out { background: var(--surface); color: var(--link); border-color: var(--border-input); }
+.btn-out:hover { border-color: var(--link); }
+
+/* trilho de fases: o fluxo macro, desenhado com a cápsula da marca */
+.trilho { display: flex; flex-wrap: wrap; gap: 14px 12px; margin-top: 26px; }
+.tg { flex: var(--n) 1 0; min-width: min(100%, calc(var(--n) * 128px)); }
+.tg-nome { font-size: 11px; letter-spacing: .13em; text-transform: uppercase; color: var(--leaf); padding-top: 7px; border-top: 2px solid rgba(174, 212, 126, .45); margin-bottom: 8px; }
+.tg-caps { display: flex; flex-wrap: wrap; gap: 6px; }
+.cap { flex: 1 1 118px; text-align: left; border-radius: 999px; padding: 8px 16px 9px; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .12); color: var(--on-dark-1); cursor: pointer; min-width: 0; }
+.cap:hover { background: rgba(255, 255, 255, .12); }
+.cap { padding-inline: 14px; }
+.cap b { display: block; font-size: 13px; font-weight: 600; line-height: 1.25; }
+.cap > span { display: block; font-size: 11.5px; color: var(--on-dark-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cap .q { font: 700 16px/1.25 var(--font-display); color: var(--on-dark-1); }
+.cap.vazia { opacity: .55; }
+.cap[aria-pressed="true"] { background: var(--grad-brand); border-color: transparent; color: var(--lime-ink); }
+.cap[aria-pressed="true"] span, .cap[aria-pressed="true"] .q { color: var(--lime-ink); }
+.fora { margin-top: 12px; font-size: 12.5px; color: var(--on-dark-3); display: flex; gap: 6px 14px; flex-wrap: wrap; }
+.fora b { color: var(--on-dark-1); font-weight: 600; }
+
+/* ---------- área de trabalho ---------- */
+main.wrap { padding-block: 28px 56px; display: grid; gap: 28px; }
+section { min-width: 0; }
+.sec-h { display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.sec-h h2 { font-size: 17px; font-weight: 600; }
+.sec-h .meta { font-size: 13px; color: var(--ink-2); }
+.sec-h .dir { margin-left: auto; font-size: 13px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; min-width: 0; }
+.card-p { padding: 16px 20px; }
+.card-h { display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; padding: 16px 20px 12px; }
+.card-h h3 { font-size: 14.5px; font-weight: 600; }
+.card-h .meta { font-size: 12.5px; color: var(--ink-2); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 20px; align-items: start; }
+.nota { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+.nota-pe { padding: 12px 20px 14px; border-top: 1px solid var(--border-soft); }
+.muted { color: var(--ink-3); }
+.cod { font: 12.5px/1 var(--font-mono); color: var(--link); }
+.cod-btn { background: none; border: 0; padding: 0; cursor: pointer; font: 12.5px/1 var(--font-mono); color: var(--link); text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; }
+.cod-btn:hover { text-decoration-color: currentColor; }
+
+/* cartões de indicador: a faixa de 3px é o único vestígio de marca */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 16px; }
+.kpi { position: relative; overflow: hidden; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+.kpi::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; background: var(--strip, var(--grad-bar)); }
+.kpi .rot { font-size: 13px; color: var(--ink-2); }
+.kpi .val { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.kpi .val b { font: 700 30px/1 var(--font-display); letter-spacing: -0.02em; }
+.kpi .val span { font-size: 13px; color: var(--ink-3); }
+.kpi .meta { font-size: 12px; color: var(--ink-2); line-height: 1.45; }
+
+.bar { display: flex; gap: 2px; height: 7px; border-radius: 999px; overflow: hidden; background: var(--track); }
+.bar > span { display: block; min-width: 3px; }
+.bar.lg { height: 12px; }
+.bar.zero { background: var(--track); }
+
+.st { white-space: nowrap; font-size: 13px; }
+.st i { font-style: normal; display: inline-block; min-width: 1em; text-align: center; }
+.st em { font-style: normal; color: var(--ink-3); }
+.st-critical { color: var(--critical); }
+.st-at-risk { color: var(--at-risk); }
+.st-on-track { color: var(--on-track); }
+.st-no-data { color: var(--ink-3); }
+.st-delayed { color: var(--delayed); }
+.st-on-hold { color: var(--on-hold); }
+.leg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-2); }
+.leg .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+/* tabelas */
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.tbl th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--link); background: var(--surface-alt); padding: 12px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.tbl td { padding: 11px 14px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+.tbl th:first-child, .tbl td:first-child { padding-left: 20px; }
+.tbl th:last-child, .tbl td:last-child { padding-right: 20px; }
+.tbl tr:last-child > td { border-bottom: 0; }
+.tbl .r { text-align: right; }
+.tbl .grp td { background: var(--surface-alt); padding-block: 10px; border-bottom: 1px solid var(--border); }
+.tbl .grp b { font-weight: 600; }
+.tbl .grp span { color: var(--ink-2); font-size: 12.5px; margin-left: 8px; }
+.tbl tr.crit { background-image: var(--row-crit); }
+.tit { max-width: 46ch; }
+.tit small { display: block; color: var(--ink-2); font-size: 12px; margin-top: 2px; }
+.fase { display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border); white-space: nowrap; color: var(--ink-1); }
+.lin { cursor: pointer; }
+.lin:hover > td { background-color: var(--surface-alt); }
+.exp { background: none; border: 0; cursor: pointer; color: var(--ink-3); padding: 0 6px 0 0; font-size: 11px; transition: transform .15s; }
+.lin[aria-expanded="true"] .exp { transform: rotate(90deg); }
+.det td { background: var(--surface-alt); }
+.det-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px 28px; padding: 6px 0 8px; }
+.det h4 { margin: 0 0 6px; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--link); }
+.det dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; margin: 0; font-size: 12.5px; }
+.det dt { color: var(--ink-2); }
+.det dd { margin: 0; }
+.det .texto { font-size: 12.5px; white-space: pre-line; max-width: 80ch; }
+.marcos { border-collapse: collapse; font-size: 12.5px; width: 100%; }
+.marcos th, .marcos td { padding: 3px 10px 3px 0; text-align: left; border: 0; }
+.marcos th { font-weight: 400; color: var(--ink-2); }
+
+/* filtros: cápsulas */
+.filtros { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+.chip { border-radius: 999px; padding: 6px 14px; border: 1px solid var(--border-input); background: var(--surface); color: var(--ink-1); font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+.chip:hover { border-color: var(--link); }
+.chip[aria-pressed="true"] { background: var(--chip-on); border-color: var(--chip-on); color: var(--chip-on-ink); }
+.filtros select, .filtros input { border: 1px solid var(--border-input); background: var(--surface); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; max-width: 100%; }
+.filtros input { min-width: 0; width: 220px; }
+.filtros .conta { margin-left: auto; font-size: 12px; color: var(--ink-3); }
+
+/* blocos de aviso */
+.aviso { border-radius: 10px; padding: 16px 20px; border: 1px solid; }
+.aviso h3 { font-size: 14.5px; font-weight: 600; margin-bottom: 4px; }
+.aviso p { font-size: 13px; }
+.aviso.warn { background: var(--warn-bg); border-color: var(--warn-border); }
+.aviso.warn h3 { color: var(--warn-ink); }
+.aviso.warn p { color: var(--warn-ink-soft); }
+.aviso.good { background: var(--good-bg); border-color: var(--good-border); }
+
+/* listas de linhas com barra (aderência, pessoas, PI) */
+.linhas { display: grid; }
+.linha { display: grid; grid-template-columns: minmax(96px, 150px) minmax(0, 1fr) 118px; gap: 4px 14px; align-items: center; padding: 11px 20px; border-top: 1px solid var(--border-soft); }
+.linha:first-child { border-top: 0; }
+.linha .nome { font-size: 13.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.linha .val { font-size: 13px; text-align: right; white-space: nowrap; }
+.nw { white-space: nowrap; }
+.linha .sub { grid-column: 2 / -1; font-size: 12px; color: var(--ink-2); }
+
+/* CABs por mês */
+.colunas { display: flex; align-items: flex-end; gap: 6px; height: 170px; padding: 8px 20px 0; }
+.col { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+.col .q { font-size: 12px; color: var(--ink-1); margin-bottom: 4px; }
+.col .pilha { width: min(100%, 34px); display: flex; flex-direction: column; gap: 2px; }
+.col .pilha span { display: block; border-radius: 4px 4px 0 0; }
+.col .pilha span + span { border-radius: 0; }
+.col-rot { display: flex; gap: 6px; padding: 6px 20px 12px; }
+.col-rot span { flex: 1 1 0; text-align: center; font-size: 11.5px; color: var(--ink-3); min-width: 0; }
+.col-rot span.hoje { color: var(--ink-1); font-weight: 600; }
+
+/* área × PI */
+.heat { text-align: center; }
+
+/* mudanças desde a exportação anterior */
+.delta-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 14px; }
+.dchip { border-radius: 999px; padding: 5px 12px; background: var(--accent-soft); color: var(--ink-1); font-size: 12.5px; }
+.dchip b { font-weight: 700; }
+
+/* estado vazio e soltar arquivo */
+.vazio { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px 36px; align-items: center; padding: 32px; }
+.vazio svg { width: 120px; height: 120px; opacity: .3; }
+.vazio h2 { font-size: 21px; font-weight: 600; }
+.vazio p { margin-top: 8px; max-width: 62ch; color: var(--ink-2); }
+.vazio ol { margin: 12px 0 0; padding-left: 20px; color: var(--ink-1); }
+.vazio ol li + li { margin-top: 4px; }
+.drop { position: fixed; inset: 0; z-index: 20; background: rgba(14, 17, 19, .72); display: grid; place-items: center; padding: 24px; }
+.drop div { border: 2px dashed var(--leaf); border-radius: 16px; padding: 40px 48px; color: #FFFFFF; font: 600 18px/1.3 var(--font-display); text-align: center; background: rgba(14, 17, 19, .6); }
+#tip { position: fixed; z-index: 30; max-width: 280px; background: #0E1113; color: #FFFFFF; font-size: 12px; line-height: 1.4; padding: 6px 10px; border-radius: 6px; pointer-events: none; box-shadow: 0 6px 18px rgba(0, 0, 0, .25); }
+
+.metodo { columns: 2 340px; column-gap: 32px; font-size: 12.5px; color: var(--ink-2); padding: 16px 20px; }
+.metodo p { break-inside: avoid; margin-bottom: 10px; }
+.metodo b { color: var(--ink-1); font-weight: 600; }
+details.hist summary { cursor: pointer; padding: 12px 20px; color: var(--link); font-size: 13px; border-top: 1px solid var(--border-soft); }
+details.hist ul { margin: 0; padding: 0 20px 14px 38px; font-size: 12.5px; }
+details.hist li + li { margin-top: 8px; }
+.mini { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 0; }
+.mini > div { padding: 14px 20px; border-top: 1px solid var(--border-soft); }
+.mini b { display: block; font: 700 22px/1.1 var(--font-display); }
+.mini span { display: block; font-size: 12px; color: var(--ink-2); margin-top: 3px; }
+
+@media (max-width: 640px) {
+  .band-mark { width: 300px; height: 300px; right: -110px; top: -80px; }
+  .vazio { grid-template-columns: 1fr; padding: 22px; }
+  .vazio svg { width: 72px; height: 72px; }
+  .filtros .conta { margin-left: 0; width: 100%; }
+  .linha { grid-template-columns: minmax(0, 1fr) auto; }
+  .linha .bar { grid-column: 1 / -1; grid-row: 2; }
+  .linha .sub { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <svg class="band-mark" viewBox="0 0 400 400" aria-hidden="true">
+    <defs>
+      <linearGradient id="mk-a2" x1="240" y1="50" x2="140" y2="345" gradientUnits="userSpaceOnUse"><stop offset=".5" stop-color="#5FAF2E"/><stop offset=".5" stop-color="#2A8A7B"/></linearGradient>
+      <linearGradient id="mk-b2" x1="70" y1="130" x2="335" y2="265" gradientUnits="userSpaceOnUse"><stop offset=".5" stop-color="#A8CF7C"/><stop offset=".5" stop-color="#4DB5A3"/></linearGradient>
+    </defs>
+    <g style="isolation:isolate" stroke-width="82" stroke-linecap="round" fill="none"><line x1="240" y1="50" x2="140" y2="345" stroke="url(#mk-a2)"/><line x1="70" y1="130" x2="335" y2="265" stroke="url(#mk-b2)" style="mix-blend-mode:multiply"/></g>
+  </svg>
+  <div class="wrap">
+    <div class="topo">
+      <div class="lockup">
+        <svg viewBox="0 0 400 400" aria-label="Avvale" role="img">
+          <defs>
+            <linearGradient id="mk-a1" x1="240" y1="50" x2="140" y2="345" gradientUnits="userSpaceOnUse"><stop offset=".5" stop-color="#5FAF2E"/><stop offset=".5" stop-color="#2A8A7B"/></linearGradient>
+            <linearGradient id="mk-b1" x1="70" y1="130" x2="335" y2="265" gradientUnits="userSpaceOnUse"><stop offset=".5" stop-color="#A8CF7C"/><stop offset=".5" stop-color="#4DB5A3"/></linearGradient>
+          </defs>
+          <g style="isolation:isolate" stroke-width="82" stroke-linecap="round" fill="none"><line x1="240" y1="50" x2="140" y2="345" stroke="url(#mk-a1)"/><line x1="70" y1="130" x2="335" y2="265" stroke="url(#mk-b1)" style="mix-blend-mode:multiply"/></g>
+        </svg>
+        <span class="lk-rule" aria-hidden="true"></span>
+        <span><span class="lk-name">avvale</span><span class="lk-sig">Project portfolio</span></span>
+      </div>
+      <div class="topo-acts">
+        <label class="sel-exp" id="selExpRot" hidden>Exportação <select id="selExp"></select></label>
+      </div>
+    </div>
+    <div class="hero">
+      <p class="kicker" id="kicker">Esteira de melhorias SAP · Acelen</p>
+      <h1 id="titulo">Report da esteira</h1>
+      <p class="sub" id="subtitulo">Carregue a exportação da lista Cadastro de Melhorias para ver o andamento.</p>
+      <div class="hero-acts">
+        <button class="btn btn-lime" id="btnPrincipal" type="button" hidden></button>
+        <button class="btn btn-ghost" id="btnCarregar" type="button">Carregar exportação</button>
+        <input type="file" id="arquivo" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+      </div>
+      <p class="msg" id="msg" role="status" hidden></p>
+    </div>
+    <nav class="trilho" id="trilho" aria-label="Fluxo macro da esteira" hidden></nav>
+    <p class="fora" id="fora" hidden></p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="vazio" class="card vazio">
+    <svg viewBox="0 0 400 400" aria-hidden="true"><g stroke-width="82" stroke-linecap="round" fill="none"><line x1="240" y1="50" x2="140" y2="345" stroke="#86C9BC"/><line x1="70" y1="130" x2="335" y2="265" stroke="#C4E5DE"/></g></svg>
+    <div>
+      <h2 id="vazioTit">Nenhuma exportação carregada</h2>
+      <p id="vazioTxt">O report lê a exportação da lista Cadastro de Melhorias e calcula prazo, cadência, última milha e qualidade do cadastro. O arquivo é lido aqui, no navegador.</p>
+      <ol>
+        <li>No SharePoint, abra a lista Cadastro de Melhorias e use <b>Exportar › Exportar para Excel</b> (ou CSV salvo como .xlsx).</li>
+        <li>Clique em <b>Carregar exportação</b> ou solte o arquivo nesta página.</li>
+        <li>Toda semana, carregue a exportação nova: a seção de mudanças compara com a anterior.</li>
+      </ol>
+    </div>
+  </section>
+
+  <div id="app" hidden style="display:contents">
+    <section id="secDelta"></section>
+    <section id="secKpi"></section>
+    <section id="secAcao"></section>
+    <div class="grid2">
+      <section id="secPrazo"></section>
+      <section id="secProximas"></section>
+    </div>
+    <div class="grid2">
+      <section id="secPi"></section>
+      <section id="secCab"></section>
+    </div>
+    <section id="secArea"></section>
+    <div class="grid2">
+      <section id="secPessoas"></section>
+      <section id="secQualidade"></section>
+    </div>
+    <section id="secDado"></section>
+    <section id="secTodas"></section>
+    <section id="secMetodo"></section>
+  </div>
+</main>
+
+<div class="drop" id="drop" hidden><div>Solte a exportação do Cadastro de Melhorias</div></div>
+<div id="tip" role="tooltip" hidden></div>
+
+<script id="nucleo">
+// NÚCLEO — leitura do .xlsx, normalização e cálculo. Sem DOM: o mesmo código roda no
+// navegador e no node (relatorios/esteira-acelen/confere.mjs confere os números contra a planilha).
+(function () {
+  'use strict';
+  const td = new TextDecoder();
+
+  // O .xlsx é um zip. O navegador já descomprime deflate (DecompressionStream), então
+  // basta ler o diretório central — sem biblioteca, e sem nada sair da máquina.
+  async function abrirZip(buf) {
+    const u8 = new Uint8Array(buf);
+    const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    let e = u8.length - 22;
+    while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+    if (e < 0) throw new Error('O arquivo não abriu como .xlsx. Exporte a lista para Excel e tente de novo.');
+    const total = dv.getUint16(e + 10, true);
+    let p = dv.getUint32(e + 16, true);
+    const ent = new Map();
+    for (let i = 0; i < total && dv.getUint32(p, true) === 0x02014b50; i++) {
+      const ln = dv.getUint16(p + 28, true);
+      ent.set(td.decode(u8.subarray(p + 46, p + 46 + ln)), {
+        metodo: dv.getUint16(p + 10, true), tam: dv.getUint32(p + 20, true), off: dv.getUint32(p + 42, true),
+      });
+      p += 46 + ln + dv.getUint16(p + 30, true) + dv.getUint16(p + 32, true);
+    }
+    return {
+      nomes: [...ent.keys()],
+      async texto(nome) {
+        const f = ent.get(nome);
+        if (!f) return null;
+        const ini = f.off + 30 + dv.getUint16(f.off + 26, true) + dv.getUint16(f.off + 28, true);
+        const bruto = u8.subarray(ini, ini + f.tam);
+        if (f.metodo === 0) return td.decode(bruto);
+        const fluxo = new Blob([bruto]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+        return td.decode(await new Response(fluxo).arrayBuffer());
+      },
+    };
+  }
+
+  const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+  const xmlTexto = (s) => s.replace(/&(#x[0-9a-f]+|#\d+|\w+);/gi, (m, c) =>
+    c[0] === '#' ? String.fromCodePoint(c[1] === 'x' || c[1] === 'X' ? parseInt(c.slice(2), 16) : +c.slice(1)) : (ENT[c] ?? m));
+  function textos(s) {
+    let out = '';
+    s.replace(/<rPh\b[\s\S]*?<\/rPh>/g, '').replace(/<t\b[^>]*\/>/g, '')
+      .replace(/<t\b[^>]*>([\s\S]*?)<\/t>/g, (_, t) => { out += t; return ''; });
+    return xmlTexto(out);
+  }
+  const colIdx = (ref) => [...ref].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+
+  function lerFolha(xml, compart) {
+    const linhas = [];
+    for (const [, corpo] of xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)) {
+      const linha = [];
+      for (const [, at, dentro = ''] of corpo.matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+        const r = /\br="([A-Z]+)\d+"/.exec(at);
+        const t = (/\bt="(\w+)"/.exec(at) || [])[1];
+        const v = /<v>([\s\S]*?)<\/v>/.exec(dentro);
+        let val = null;
+        if (t === 'inlineStr') val = textos(dentro);
+        else if (v) val = t === 's' ? compart[+v[1]] : t === 'b' ? v[1] === '1' : xmlTexto(v[1]);
+        if (r) linha[colIdx(r[1])] = val; else linha.push(val);
+      }
+      linhas.push(linha);
+    }
+    return linhas;
+  }
+
+  async function lerXlsx(buf) {
+    const zip = await abrirZip(buf);
+    const ss = await zip.texto('xl/sharedStrings.xml');
+    const compart = ss ? [...ss.matchAll(/<si\b[^>]*?(?:\/>|>([\s\S]*?)<\/si>)/g)].map((m) => textos(m[1] || '')) : [];
+    const nomes = zip.nomes.filter((n) => /^xl\/worksheets\/[^/]+\.xml$/.test(n)).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+    const folhas = [];
+    for (const n of nomes) folhas.push(lerFolha(await zip.texto(n), compart));
+    const core = (await zip.texto('docProps/core.xml')) || '';
+    const prop = (tag) => { const m = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`).exec(core); return m ? xmlTexto(m[1]).trim() : null; };
+    return { folhas, props: { modificado: prop('dcterms:modified'), criado: prop('dcterms:created'), autor: prop('cp:lastModifiedBy') || prop('dc:creator') } };
+  }
+
+  // Colunas da lista. A exportação do SharePoint traz os nomes com erros de digitação
+  // ("PI Entegue", "Iníco", "Consução", "Proto"); a grafia corrigida também é aceita,
+  // para o report não quebrar no dia em que alguém consertar a lista.
+  const CAMPOS = [
+    ['id', 'num', 'NumeroDemanda', 'Número da Demanda'],
+    ['titulo', 'txt', 'Titolo', 'Título', 'Title'],
+    ['piPlan', 'txt', 'PI Planning'],
+    ['piEntregue', 'txt', 'PI Entegue', 'PI Entregue'],
+    ['frente', 'txt', 'Frente'],
+    ['area', 'txt', 'Area', 'Área'],
+    ['funcional', 'pessoas', 'Funcional Responsável'],
+    ['abap', 'pessoas', 'ABAP Responsável'],
+    ['respAcelen', 'txt', 'Resp Acelen'],
+    ['classe', 'txt', 'Classificação do Desenvolvimento'],
+    ['sprintPlan', 'txt', 'Sprint Baseline Pronto/Em Encerramento'],
+    ['sprintReal', 'txt', 'Sprint Proto/Em encerramento', 'Sprint Pronto/Em Encerramento'],
+    ['charm', 'txt', 'Nº do Charm'],
+    ['horas', 'num', 'QtdHoras'],
+    ['horasFunc', 'num', 'Horas Funcional'],
+    ['horasAbap', 'num', 'Horas ABAP'],
+    ['tamanho', 'txt', 'Classificação de Tamanho'],
+    ['fase', 'txt', 'Fase'],
+    ['p_inicio', 'data', 'Data de Iníco', 'Data de Início'],
+    ['p_refinamento', 'data', 'Data de Entrega Refinamento'],
+    ['p_construcao', 'data', 'Data de Entrega Construção'],
+    ['p_homologacao', 'data', 'Data de Entrega Homologação'],
+    ['p_pronto', 'data', 'Data de Entrega Pronto/Em Encerramento'],
+    ['cab', 'data', 'Data CAB'],
+    ['r_inicio', 'data', 'Data Início Real'],
+    ['r_refinamento', 'data', 'Data de Entrega de Refinamento Real'],
+    ['r_construcao', 'data', 'Data de Entrega Consução Real', 'Data de Entrega Construção Real'],
+    ['r_homologacao', 'data', 'Data de Entrega Homologação Real'],
+    ['r_pronto', 'data', 'Data de Entrega Pronto/Em Encerramento Real'],
+    ['r_concluido', 'data', 'Data Concluído Real'],
+    ['rq_construcao', 'num', 'Qtd Replanejamento Construção'],
+    ['rh_construcao', 'txt', 'Hist. Replanejamento Construção'],
+    ['rq_homologacao', 'num', 'Qtd Replanejamento Homologação'],
+    ['rh_homologacao', 'txt', 'Hist. Replanejamento Homologação'],
+    ['rq_concluido', 'num', 'Qtd Replanejamento Concluído'],
+    ['rh_concluido', 'txt', 'Hist. Replanejamento Concluído'],
+    ['aprov1', 'bool', 'Demanda Aprovada no Primeiro Teste?'],
+    ['motivosUat', 'lista', 'Motivos de Não Aprovação UAT'],
+    ['rodadasUat', 'num', 'Qtd de UAT Para Aprovação'],
+    ['cr', 'bool', 'Foi realizada uma Change Request?'],
+    ['hypercare', 'bool', 'Hypercare Necessário?'],
+    ['incidentes', 'num', 'Qtd de Incidentes'],
+    ['motivosIncidentes', 'txt', 'Motivos Incidentes'],
+    ['statusReport', 'txt', 'Status Report Semanal'],
+  ];
+  const norm = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  function paraData(v) {
+    const s = String(v).trim();
+    if (/^\d+(\.\d+)?$/.test(s)) {
+      const n = +s;
+      return n > 0 && n < 2958466 ? new Date(Math.round((n - 25569) * 864e5)).toISOString().slice(0, 10) : null;
+    }
+    let m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s);
+    return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : null;
+  }
+  function converter(v, tipo) {
+    if (v === null || v === undefined) return null;
+    if (typeof v === 'string') { v = v.trim(); if (!v) return null; }
+    if (tipo === 'num') { const n = Number(String(v).replace(',', '.')); return Number.isFinite(n) ? n : null; }
+    if (tipo === 'bool') {
+      if (typeof v === 'boolean') return v;
+      const s = norm(v);
+      return ['true', '1', 'sim', 'yes', 'verdadeiro', 'vero'].includes(s) ? true : ['false', '0', 'nao', 'no', 'falso'].includes(s) ? false : null;
+    }
+    if (tipo === 'data') return paraData(v);
+    // pessoa no SharePoint vem como "Nome;#id;#Outro Nome;#id": fica só o nome
+    if (tipo === 'pessoas' || tipo === 'lista') {
+      const l = String(v).split(';#').map((s) => s.trim()).filter((s) => s && !(tipo === 'pessoas' && /^\d+$/.test(s)));
+      return l.length ? l : null;
+    }
+    return String(v);
+  }
+
+  function normalizar(lido, arquivo, dataArquivo) {
+    const alvo = {};
+    CAMPOS.forEach(([k, , ...nomes]) => nomes.forEach((n) => { alvo[norm(n)] = k; }));
+    let folha = null;
+    let mapa = null;
+    for (const f of lido.folhas) {
+      const cab = Array.from(f[0] || [], (c) => alvo[norm(c)]);
+      if (cab.includes('id') && cab.includes('titulo') && cab.includes('fase')) { folha = f; mapa = cab; break; }
+    }
+    if (!folha) throw new Error('Não achei as colunas NumeroDemanda, Titolo e Fase. O arquivo precisa ser a exportação da lista Cadastro de Melhorias.');
+    const tipo = Object.fromEntries(CAMPOS.map(([k, t]) => [k, t]));
+    const demandas = [];
+    for (const linha of folha.slice(1)) {
+      const d = {};
+      mapa.forEach((k, i) => { if (!k || d[k] != null) return; const v = converter(linha[i], tipo[k]); if (v !== null) d[k] = v; });
+      if (d.id == null && !d.titulo) continue;
+      demandas.push(d);
+    }
+    if (!demandas.length) throw new Error('A planilha tem o cabeçalho da lista, mas nenhuma demanda.');
+    let quando = new Date(lido.props.modificado || lido.props.criado || dataArquivo || Date.now());
+    if (Number.isNaN(+quando)) quando = new Date();
+    const presentes = new Set(mapa.filter(Boolean));
+    const corte = ymd(quando);
+    return {
+      id: corte, corte, exportadoEm: quando.toISOString(), autor: lido.props.autor || null, arquivo: arquivo || null,
+      total: demandas.length, colunasAusentes: CAMPOS.filter(([k]) => !presentes.has(k)).map(([, , n]) => n), demandas,
+    };
+  }
+
+  // ---------- análise ----------
+  const dia = (iso) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5;
+  const somaH = (ds) => ds.reduce((s, d) => s + (d.horas || 0), 0);
+  const mediana = (xs) => {
+    if (!xs.length) return null;
+    const a = [...xs].sort((x, y) => x - y), h = a.length >> 1;
+    return a.length % 2 ? a[h] : (a[h - 1] + a[h]) / 2;
+  };
+  const porNome = (a, b) => String(a).localeCompare(String(b), 'pt', { numeric: true });
+  const aberta = (d) => d.st !== 'concluida' && d.st !== 'cancelada';
+  const contar = (xs, f) => xs.reduce((m, x) => { const k = f(x); if (k != null) m[k] = (m[k] || 0) + 1; return m; }, {});
+
+  function faseTipo(fase) {
+    const f = norm(fase);
+    if (f.startsWith('conclu')) return 'concluido';
+    if (f.startsWith('cancel')) return 'cancelada';
+    if (f.startsWith('bloque')) return 'bloqueado';
+    if (f.startsWith('backlog')) return 'backlog';
+    if (f.includes('refin')) return 'refinamento';
+    if (f.includes('constru')) return 'construcao';
+    if (f.includes('homolog')) return 'homologacao';
+    if (f.includes('pronto') || f.includes('encerr')) return 'pronto';
+    return 'outra';
+  }
+  // Prazo de uma demanda aberta = a data planejada que ENCERRA a fase em que ela está.
+  // Pronto/Em Encerramento só sai da fase com a CAB, então o prazo dela é a Data CAB.
+  const PRAZO = {
+    backlog: ['p_inicio', 'Início'], refinamento: ['p_refinamento', 'Fim do refinamento'],
+    construcao: ['p_construcao', 'Fim da construção'], homologacao: ['p_homologacao', 'Fim da homologação'],
+    pronto: ['cab', 'CAB'], outra: ['p_pronto', 'Pronto'],
+  };
+  function situacao(d, c) {
+    const t = faseTipo(d.fase);
+    if (t === 'concluido') return { st: 'concluida' };
+    if (t === 'cancelada') return { st: 'cancelada' };
+    if (t === 'bloqueado') return { st: 'bloqueada' };
+    const [campo, marco] = PRAZO[t];
+    if (!d[campo]) return { st: t === 'pronto' ? 'semcab' : 'semdata', marco };
+    const n = dia(d[campo]) - c;
+    return { st: n < 0 ? 'atrasada' : n <= 7 ? 'vence' : 'noprazo', marco, prazo: d[campo], dias: n };
+  }
+
+  // O fluxo macro (Iniciação → Planejamento → Execução → Encerramento) e de onde vem
+  // cada etapa na lista. Pronto/Em Encerramento se divide pela CAB: sem CAB é preparação
+  // final, CAB futura é implantação agendada, CAB que já passou é encerramento pendente.
+  const ETAPAS = [
+    { k: 'preprojeto', grupo: 'Iniciação', nome: 'Pré projeto e preparação', fonte: 'Backlog', estagio: 'iniciacao' },
+    { k: 'planejamento', grupo: 'Planejamento', nome: 'Planejamento', fonte: 'Em Refinamento', estagio: 'planejamento' },
+    { k: 'construcao', grupo: 'Execução', nome: 'Construção', fonte: 'Em Construção', estagio: 'execucao' },
+    { k: 'homologacao', grupo: 'Execução', nome: 'Homologação', fonte: 'Em Homologação', estagio: 'execucao' },
+    { k: 'prepfinal', grupo: 'Execução', nome: 'Preparação final', fonte: 'Pronto · sem CAB', estagio: 'execucao' },
+    { k: 'implantacao', grupo: 'Execução', nome: 'Implantação', fonte: 'Pronto · CAB futura', estagio: 'execucao' },
+    { k: 'encerramento', grupo: 'Encerramento', nome: 'Encerramento', fonte: 'Pronto · CAB passou', estagio: 'encerramento' },
+    { k: 'concluido', grupo: 'Encerramento', nome: 'Concluído', fonte: 'Concluído', estagio: 'concluido' },
+  ];
+  const ESTAGIOS = [
+    { k: 'iniciacao', nome: 'Iniciação' }, { k: 'planejamento', nome: 'Planejamento' }, { k: 'execucao', nome: 'Execução' },
+    { k: 'encerramento', nome: 'Encerramento' }, { k: 'concluido', nome: 'Concluído' }, { k: 'fora', nome: 'Bloqueada ou cancelada' },
+  ];
+  function etapaDe(d, c) {
+    const t = faseTipo(d.fase);
+    if (t === 'pronto') return !d.cab ? 'prepfinal' : dia(d.cab) < c ? 'encerramento' : 'implantacao';
+    return { backlog: 'preprojeto', refinamento: 'planejamento', construcao: 'construcao', homologacao: 'homologacao', concluido: 'concluido' }[t] || null;
+  }
+  // O número da demanda repete na lista (a CR herda o número da original); aí o título separa.
+  function chaves(demandas) {
+    const conta = contar(demandas, (d) => String(d.id));
+    return demandas.map((d) => (conta[String(d.id)] > 1 ? `${d.id}~${norm(d.titulo)}` : String(d.id)));
+  }
+
+  const MARCOS = [
+    ['p_inicio', 'Início'], ['p_refinamento', 'Fim do refinamento'], ['p_construcao', 'Fim da construção'],
+    ['p_homologacao', 'Fim da homologação'], ['p_pronto', 'Pronto'], ['cab', 'CAB'],
+  ];
+
+  function comparar(ds, ant) {
+    const ca = dia(ant.corte);
+    const ka = chaves(ant.demandas);
+    const antes = new Map(ant.demandas.map((d, i) => [ka[i], { ...d, ...situacao(d, ca) }]));
+    const itens = [];
+    for (const d of ds) {
+      const a = antes.get(d.chave);
+      if (!a) { itens.push({ tipo: 'nova', d }); continue; }
+      if (a.fase !== d.fase) itens.push({ tipo: d.st === 'concluida' ? 'concluida' : 'fase', d, de: a.fase, para: d.fase });
+      for (const [k, nome] of MARCOS) {
+        if (a[k] && d[k] && a[k] !== d[k]) itens.push({ tipo: 'replan', d, nome, de: a[k], para: d[k], dias: dia(d[k]) - dia(a[k]) });
+      }
+      if (d.st === 'atrasada' && a.st !== 'atrasada') itens.push({ tipo: 'atrasou', d });
+    }
+    const agora = new Set(ds.map((d) => d.chave));
+    for (const [k, a] of antes) if (!agora.has(k)) itens.push({ tipo: 'saiu', d: a });
+    return { de: ant.corte, itens, conta: contar(itens, (x) => x.tipo), demandas: new Set(itens.map((x) => x.d.chave)).size };
+  }
+
+  function analisar(snap, ant) {
+    const c = dia(snap.corte);
+    const ks = chaves(snap.demandas);
+    const ds = snap.demandas.map((d, i) => ({ ...d, chave: ks[i], tipo: faseTipo(d.fase), ...situacao(d, c), etapa: etapaDe(d, c) }));
+    const abertas = ds.filter(aberta);
+    const concl = ds.filter((d) => d.st === 'concluida');
+    const prontas = ds.filter((d) => d.tipo === 'pronto');
+    const st = contar(ds, (d) => d.st);
+    const estagioDe = (d) => (d.etapa ? ETAPAS.find((e) => e.k === d.etapa).estagio : 'fora');
+
+    const etapas = ETAPAS.map((e) => { const x = ds.filter((d) => d.etapa === e.k); return { ...e, n: x.length, horas: somaH(x) }; });
+    const fora = contar(ds.filter((d) => !d.etapa), (d) => d.fase || '(sem fase)');
+
+    const acao = [
+      { k: 'bloqueada', titulo: 'Bloqueadas', nota: 'fora do fluxo até alguém destravar', itens: ds.filter((d) => d.st === 'bloqueada') },
+      { k: 'atrasada', titulo: 'Passaram da data da fase', nota: 'a data planejada que encerra a fase atual já passou', itens: ds.filter((d) => d.st === 'atrasada').sort((a, b) => a.dias - b.dias) },
+      { k: 'semcab', titulo: 'Prontas sem CAB agendada', nota: 'construídas, sem data de subida', itens: ds.filter((d) => d.st === 'semcab').sort((a, b) => (a.p_pronto || '9').localeCompare(b.p_pronto || '9')) },
+      { k: 'vence', titulo: 'Vencem nos próximos 7 dias', nota: 'a data da fase cai até uma semana depois do corte', itens: ds.filter((d) => d.st === 'vence').sort((a, b) => a.dias - b.dias) },
+    ].filter((g) => g.itens.length);
+
+    const nomesPI = [...new Set(ds.map((d) => d.piPlan || 'Sem PI'))].sort(porNome);
+    const pis = nomesPI.map((pi) => {
+      const x = ds.filter((d) => (d.piPlan || 'Sem PI') === pi);
+      const cc = x.filter((d) => d.st === 'concluida');
+      return {
+        pi, n: x.length, concl: cc.length, proprio: cc.filter((d) => d.piEntregue === pi).length,
+        carry: contar(cc.filter((d) => d.piEntregue && d.piEntregue !== pi), (d) => d.piEntregue),
+        est: contar(x, estagioDe), abertas: x.filter(aberta).length, atrasadas: x.filter((d) => d.st === 'atrasada').length,
+        semdata: x.filter((d) => d.st === 'semdata' || d.st === 'semcab').length, prontas: x.filter((d) => d.tipo === 'pronto').length,
+        horas: somaH(x), semEst: x.filter((d) => d.horas == null).length,
+        ciclo: mediana(x.filter((d) => d.p_inicio && d.p_pronto).map((d) => dia(d.p_pronto) - dia(d.p_inicio))),
+      };
+    });
+
+    const aderencia = [
+      ['Refinamento', 'p_refinamento', 'r_refinamento'], ['Construção', 'p_construcao', 'r_construcao'],
+      ['Homologação', 'p_homologacao', 'r_homologacao'], ['Pronto', 'p_pronto', 'r_pronto'],
+    ].map(([nome, p, r]) => {
+      const x = ds.filter((d) => d[p] && d[r]);
+      const tarde = x.filter((d) => d[r] > d[p]);
+      const porPI = {};
+      x.forEach((d) => { const o = (porPI[d.piPlan || 'Sem PI'] ||= { ok: 0, n: 0 }); o.n++; if (d[r] <= d[p]) o.ok++; });
+      return { nome, campoP: p, campoR: r, n: x.length, ok: x.length - tarde.length, porPI,
+        atrasoMedio: tarde.length ? tarde.reduce((s, d) => s + dia(d[r]) - dia(d[p]), 0) / tarde.length : null };
+    });
+
+    const cabs = ds.filter((d) => d.cab).map((d) => d.cab).sort();
+    const meses = [];
+    if (cabs.length) {
+      let [y, m] = cabs[0].split('-').map(Number);
+      const [y2, m2] = cabs.at(-1).split('-').map(Number);
+      while (y < y2 || (y === y2 && m <= m2)) {
+        const k = `${y}-${String(m).padStart(2, '0')}`;
+        const doMes = cabs.filter((x) => x.startsWith(k));
+        meses.push({ mes: k, passou: doMes.filter((x) => dia(x) < c).length, agendada: doMes.filter((x) => dia(x) >= c).length });
+        if (++m > 12) { m = 1; y++; }
+      }
+    }
+
+    const proximas = [];
+    abertas.forEach((d) => {
+      if (d.prazo && d.dias >= 0 && d.dias <= 28) proximas.push({ data: d.prazo, marco: d.marco, d });
+      if (d.cab && d.tipo !== 'pronto' && d.st !== 'bloqueada') {
+        const n = dia(d.cab) - c;
+        if (n >= 0 && n <= 28) proximas.push({ data: d.cab, marco: 'CAB', d });
+      }
+    });
+    proximas.sort((a, b) => a.data.localeCompare(b.data) || porNome(a.d.id, b.d.id));
+
+    const areas = [...new Set(ds.map((d) => d.area || 'Sem área'))].map((area) => {
+      const x = ds.filter((d) => (d.area || 'Sem área') === area);
+      const comH = x.filter((d) => d.horas != null);
+      return { area, n: x.length, porPI: contar(x, (d) => d.piPlan || 'Sem PI'), horas: somaH(x), hMedia: comH.length ? somaH(comH) / comH.length : null,
+        abertas: x.filter(aberta).length, atrasadas: x.filter((d) => d.st === 'atrasada').length };
+    }).sort((a, b) => b.n - a.n || porNome(a.area, b.area));
+
+    function ranking(campo) {
+      const m = new Map();
+      let comAtrib = 0;
+      ds.forEach((d) => {
+        const v = d[campo];
+        const nomes = Array.isArray(v) ? v : v ? [v] : [];
+        if (nomes.length) comAtrib++;
+        nomes.forEach((p) => {
+          const o = m.get(p) || { nome: p, total: 0, abertas: 0, atrasadas: 0 };
+          o.total++; if (aberta(d)) o.abertas++; if (d.st === 'atrasada') o.atrasadas++;
+          m.set(p, o);
+        });
+      });
+      return { comAtrib, lista: [...m.values()].sort((a, b) => b.abertas - a.abertas || b.total - a.total || porNome(a.nome, b.nome)) };
+    }
+    const pessoas = { respAcelen: ranking('respAcelen'), funcional: ranking('funcional'), abap: ranking('abap') };
+
+    const RQ = [['Construção', 'rq_construcao', 'rh_construcao'], ['Homologação', 'rq_homologacao', 'rh_homologacao'], ['Encerramento', 'rq_concluido', 'rh_concluido']];
+    const replan = {
+      porFase: RQ.map(([nome, q]) => ({ nome, n: ds.reduce((s, d) => s + (d[q] || 0), 0) })),
+      demandas: ds.filter((d) => RQ.some(([, q]) => d[q] > 0)).length,
+      historicos: ds.flatMap((d) => RQ.filter(([, , h]) => d[h]).map(([nome, , h]) => ({ d, fase: nome, texto: d[h] }))),
+    };
+    replan.total = replan.porFase.reduce((s, x) => s + x.n, 0);
+
+    const sim = (k) => ds.filter((d) => d[k] === true).length;
+    const pre = (k) => ds.filter((d) => d[k] != null).length;
+    const qualidade = {
+      cr: { sim: sim('cr'), n: pre('cr') }, hypercare: { sim: sim('hypercare'), n: pre('hypercare') },
+      aprov1: { sim: sim('aprov1'), nao: ds.filter((d) => d.aprov1 === false).length, n: pre('aprov1') },
+      uatRodadas: ds.filter((d) => d.rodadasUat > 1).length, motivosUat: contar(ds.flatMap((d) => d.motivosUat || []), (x) => x),
+      incidentes: pre('incidentes'), charm: pre('charm'),
+    };
+
+    // Fase × data real: a data real de uma etapa que a fase diz ainda não ter alcançado.
+    const LIMITE = { backlog: 0, refinamento: 1, construcao: 2, homologacao: 3, pronto: 5 };
+    const REAIS = [['r_inicio', 0], ['r_refinamento', 1], ['r_construcao', 2], ['r_homologacao', 3], ['r_pronto', 4], ['r_concluido', 5]];
+    const incoerentes = ds.filter((d) => d.tipo in LIMITE && REAIS.some(([k, i]) => d[k] && i >= LIMITE[d.tipo]));
+    const repetidos = Object.entries(contar(ds, (d) => String(d.id))).filter(([, n]) => n > 1).map(([id]) => id);
+    const sem = (xs, k) => xs.filter((d) => d[k] == null);
+    const cadastro = [
+      { campo: 'Data planejada da fase atual', derivado: true, itens: abertas.filter((d) => d.st === 'semdata' || d.st === 'semcab'), base: abertas.length, baseNome: 'abertas', efeito: 'sem ela o prazo da demanda não é medido' },
+      { campo: 'QtdHoras', itens: sem(abertas, 'horas'), base: abertas.length, baseNome: 'abertas', efeito: 'o esforço do que falta fica subestimado' },
+      { campo: 'Classificação de Tamanho', itens: sem(abertas, 'tamanho'), base: abertas.length, baseNome: 'abertas', efeito: 'a cadência por tamanho fica parcial' },
+      { campo: 'Data CAB', itens: sem(prontas, 'cab'), base: prontas.length, baseNome: 'prontas', efeito: 'pronta sem CAB não tem data de subida' },
+      { campo: 'Data de Entrega Pronto/Em Encerramento Real', itens: sem(prontas, 'r_pronto'), base: prontas.length, baseNome: 'prontas', efeito: 'o tempo parado na última milha só se mede pela data planejada' },
+      { campo: 'Data Concluído Real', itens: sem(concl, 'r_concluido'), base: concl.length, baseNome: 'concluídas', efeito: 'o ciclo real das entregas não é medido' },
+      { campo: 'Nº do Charm', itens: sem(ds, 'charm'), base: ds.length, baseNome: 'demandas', efeito: 'a demanda não se liga à mudança em produção', semIds: true },
+      { campo: 'Qtd de Incidentes', itens: sem(concl, 'incidentes'), base: concl.length, baseNome: 'concluídas', efeito: 'o hypercare não tem medida de resultado', semIds: true },
+      { campo: 'NumeroDemanda', itens: ds.filter((d) => repetidos.includes(String(d.id))), base: null, rotulo: `${repetidos.length} ${repetidos.length === 1 ? 'número repetido' : 'números repetidos'}`, efeito: 'linhas diferentes com o mesmo número; o report separa pelo título' },
+      { campo: 'Fase × data real', derivado: true, itens: incoerentes, base: null, efeito: 'tem data real de uma etapa que a fase ainda não alcançou: a fase ficou para trás' },
+    ].filter((x) => x.itens.length);
+
+    return {
+      snap, corte: snap.corte, ds, abertas, concl, prontas, st, etapas, fora, acao, pis, aderencia, meses, proximas, areas,
+      pessoas, replan, qualidade, cadastro, repetidos,
+      horas: { total: somaH(ds), concl: somaH(concl), abertas: somaH(abertas), prontas: somaH(prontas), abertasSemEst: sem(abertas, 'horas').length },
+      piAtual: pis.filter((p) => p.pi !== 'Sem PI').at(-1) || null,
+      delta: ant ? comparar(ds, ant) : null,
+    };
+  }
+
+  globalThis.Esteira = { lerXlsx, normalizar, analisar, ETAPAS, ESTAGIOS, CAMPOS, dia };
+})();
+</script>
+
+<script>
+// INTERFACE — desenha o report a partir do modelo do núcleo.
+(function () {
+  'use strict';
+  const E = globalThis.Esteira;
+  const $ = (s) => document.querySelector(s);
+  const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const num = (x) => Number(x).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  const hh = (x) => `${num(Math.round(x))} h`;
+  const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0);
+  const pl = (x, um, varios) => `${num(x)} ${x === 1 ? um : varios}`;
+  let anoCorte = '';
+  const dt = (iso, comAno) => {
+    if (!iso) return '—';
+    const [y, m, d] = iso.split('-');
+    return `${+d} ${MESES[+m - 1]}${comAno || y !== anoCorte ? ` ${y}` : ''}`;
+  };
+  const rel = (n) => (n < 0 ? `há ${-n} d` : n === 0 ? 'hoje' : `em ${n} d`);
+
+  const ST = {
+    atrasada: ['▲', 'Atrasada', 'critical'], vence: ['◐', 'Vence em 7 dias', 'at-risk'], noprazo: ['●', 'No prazo', 'on-track'],
+    semdata: ['—', 'Sem data', 'no-data'], semcab: ['—', 'Sem CAB', 'no-data'], bloqueada: ['❙❙', 'Bloqueada', 'delayed'],
+    concluida: ['▣', 'Concluída', 'on-hold'], cancelada: ['✕', 'Cancelada', 'on-hold'],
+  };
+  const stTag = (st, extra) => `<span class="st st-${ST[st][2]}"><i aria-hidden="true">${ST[st][0]}</i> ${ST[st][1]}${extra ? ` <em>· ${esc(extra)}</em>` : ''}</span>`;
+  const prazoTxt = (d) => {
+    if (d.prazo) return `${d.marco} ${dt(d.prazo)} · ${rel(d.dias)}`;
+    if (d.st === 'semcab') return d.p_pronto ? `pronto planejado ${dt(d.p_pronto)}` : 'sem data de pronto';
+    if (d.st === 'semdata') return `sem data de ${d.marco.toLowerCase()}`;
+    if (d.st === 'concluida') return d.r_concluido ? `concluída ${dt(d.r_concluido)}` : d.cab ? `CAB ${dt(d.cab)}` : '';
+    return '';
+  };
+  const COR_ESTAGIO = { iniciacao: 'var(--e1)', planejamento: 'var(--e2)', execucao: 'var(--e3)', encerramento: 'var(--e4)', concluido: 'var(--e5)', fora: 'var(--e-fora)' };
+  const COR_ST = { atrasada: 'var(--critical-bg)', vence: 'var(--at-risk)', noprazo: 'var(--on-track)', semdata: 'var(--no-data)', semcab: 'var(--no-data)', bloqueada: 'var(--delayed)' };
+  const barra = (segs, rotulo, cls = '') => `<div class="bar ${cls}" role="img" aria-label="${esc(rotulo)}">${segs.filter((s) => s.n > 0)
+    .map((s) => `<span style="flex:${s.n} 1 0;background:${s.cor}" data-tip="${esc(s.tip)}"></span>`).join('')}</div>`;
+  const progresso = (a, b, cor = 'var(--grad-bar)') => `<div class="bar" role="img" aria-label="${pct(a, b)}%"><span style="width:${b ? (100 * a) / b : 0}%;background:${cor}"></span></div>`;
+  const codBtn = (d) => `<button type="button" class="cod-btn" data-abrir="${esc(d.chave)}">${esc(d.id)}</button>`;
+  const secH = (titulo, meta, dir = '') => `<div class="sec-h"><h2>${titulo}</h2>${meta ? `<span class="meta">${meta}</span>` : ''}${dir ? `<span class="dir">${dir}</span>` : ''}</div>`;
+
+  const estado = {
+    db: null, podeGravar: null, exportacoes: [], cache: new Map(), selecionada: null, modelo: null,
+    filtro: { st: 'abertas', pi: '', area: '', etapa: '', q: '' }, abertas: new Set(), pessoas: 'respAcelen',
+  };
+
+  // ---------- desenho ----------
+  function render(m) {
+    estado.modelo = m;
+    anoCorte = m.corte.slice(0, 4);
+    $('#vazio').hidden = true;
+    $('#app').hidden = false;
+    $('#app').style.display = 'contents';
+    renderBanda(m);
+    renderDelta(m);
+    renderKpi(m);
+    renderAcao(m);
+    renderPrazo(m);
+    renderProximas(m);
+    renderPi(m);
+    renderCab(m);
+    renderArea(m);
+    renderPessoas(m);
+    renderQualidade(m);
+    renderDado(m);
+    renderTodas(m);
+    renderMetodo(m);
+  }
+
+  function renderBanda(m) {
+    const s = m.snap;
+    $('#kicker').textContent = `Esteira de melhorias SAP · Acelen · exportação de ${dt(s.corte, true)}`;
+    const atr = m.st.atrasada || 0;
+    const enc = m.etapas.find((e) => e.k === 'encerramento').n;
+    const semcab = m.st.semcab || 0;
+    const semdata = m.st.semdata || 0;
+    const bloq = m.st.bloqueada || 0;
+    let titulo; const sub = [];
+    if (atr) {
+      titulo = `${pl(atr, 'demanda aberta passou', 'demandas abertas passaram')} da data`;
+      if (enc) sub.push(`${num(enc)} ${enc === 1 ? 'tem a data de CAB vencida e segue aberta' : 'têm a data de CAB vencida e seguem abertas'}.`);
+    } else if (bloq) {
+      titulo = `${pl(bloq, 'demanda bloqueada', 'demandas bloqueadas')}, nenhuma fora do prazo`;
+    } else {
+      titulo = 'Nenhuma demanda aberta passou da data';
+    }
+    if (semcab) sub.push(`${num(semcab)} ${semcab === 1 ? 'está pronta' : 'estão prontas'} sem CAB agendada.`);
+    if (semdata) sub.push(`${num(semdata)} das ${num(m.abertas.length)} abertas não têm data na fase atual, então ficam fora da conta de prazo.`);
+    if (!atr && bloq) sub.unshift(`${num(m.abertas.length)} abertas.`);
+    $('#titulo').textContent = titulo;
+    $('#subtitulo').textContent = sub.join(' ') || `${pl(m.abertas.length, 'demanda aberta', 'demandas abertas')}, todas com data.`;
+    const b = $('#btnPrincipal');
+    if (atr || bloq) {
+      b.hidden = false;
+      b.textContent = atr ? `Ver ${atr === 1 ? 'a atrasada' : `as ${atr} atrasadas`}` : `Ver ${bloq === 1 ? 'a bloqueada' : `as ${bloq} bloqueadas`}`;
+      b.dataset.st = atr ? 'atrasada' : 'bloqueada';
+    } else b.hidden = true;
+    $('#btnCarregar').className = 'btn btn-ghost';
+
+    const grupos = [];
+    m.etapas.forEach((e) => { const g = grupos.at(-1); if (g && g.nome === e.grupo) g.etapas.push(e); else grupos.push({ nome: e.grupo, etapas: [e] }); });
+    $('#trilho').innerHTML = grupos.map((g) => `<div class="tg" style="--n:${g.etapas.length}"><div class="tg-nome">${esc(g.nome)}</div><div class="tg-caps">${g.etapas.map((e) =>
+      `<button type="button" class="cap${e.n ? '' : ' vazia'}" data-etapa="${e.k}" aria-pressed="${estado.filtro.etapa === e.k}" title="Na lista: ${esc(e.fonte)}"><b>${esc(e.nome)}</b><span><span class="q">${num(e.n)}</span>${e.horas ? ` · ${hh(e.horas)}` : ''}</span><span>${esc(e.fonte)}</span></button>`).join('')}</div></div>`).join('');
+    $('#trilho').hidden = false;
+    const fora = Object.entries(m.fora);
+    $('#fora').innerHTML = fora.length ? `<span>Fora do fluxo:</span>${fora.map(([f, n]) => `<span>${/bloque/i.test(f) ? '❙❙' : /cancel/i.test(f) ? '✕' : '·'} <b>${num(n)}</b> ${esc(f)}</span>`).join('')}` : '';
+    $('#fora').hidden = !fora.length;
+  }
+
+  function renderDelta(m) {
+    const el = $('#secDelta');
+    if (!m.delta) {
+      el.innerHTML = `<div class="card card-p nota">A comparação com a exportação anterior aparece aqui a partir da segunda exportação carregada: o que concluiu, mudou de fase, foi replanejado ou passou a atrasar.</div>`;
+      return;
+    }
+    const D = m.delta;
+    const ROT = { concluida: ['concluída', 'concluídas'], fase: ['mudou de fase', 'mudaram de fase'], replan: ['data replanejada', 'datas replanejadas'], atrasou: ['passou a atrasar', 'passaram a atrasar'], nova: ['nova na lista', 'novas na lista'], saiu: ['saiu da lista', 'saíram da lista'] };
+    const ordem = ['concluida', 'fase', 'replan', 'atrasou', 'nova', 'saiu'];
+    const txt = (x) => ({
+      nova: `entrou na lista · ${esc(x.d.fase)}`, saiu: 'saiu da lista', concluida: `${esc(x.de)} → Concluído`, fase: `${esc(x.de)} → ${esc(x.para)}`,
+      replan: `${esc(x.nome)}: ${dt(x.de)} → ${dt(x.para)} <em class="muted">(${x.dias > 0 ? '+' : ''}${x.dias} d)</em>`,
+      atrasou: `passou da data · ${esc(x.d.marco)} ${dt(x.d.prazo)}`,
+    }[x.tipo]);
+    const itens = [...D.itens].sort((a, b) => ordem.indexOf(a.tipo) - ordem.indexOf(b.tipo));
+    el.innerHTML = secH(`Desde a exportação de ${dt(D.de, true)}`, pl(D.demandas, 'demanda mudou', 'demandas mudaram')) +
+      `<div class="card">${D.itens.length ? `<div class="card-h"><span class="meta">o que mudou entre as duas exportações</span></div><div class="delta-chips">${ordem.filter((k) => D.conta[k]).map((k) => `<span class="dchip"><b>${num(D.conta[k])}</b> ${ROT[k][D.conta[k] === 1 ? 0 : 1]}</span>`).join('')}</div>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Código</th><th>Demanda</th><th>Mudança</th><th>Situação hoje</th></tr></thead><tbody>${itens.map((x) => `<tr><td>${x.tipo === 'saiu' ? `<span class="cod">${esc(x.d.id)}</span>` : codBtn(x.d)}</td><td class="tit">${esc(x.d.titulo)}</td><td>${txt(x)}</td><td>${x.tipo === 'saiu' ? '' : stTag(x.d.st)}</td></tr>`).join('')}</tbody></table></div>`
+      : '<div class="card-p nota">Nada mudou entre as duas exportações.</div>'}</div>`;
+  }
+
+  function renderKpi(m) {
+    const validas = m.ds.length - (m.st.cancelada || 0);
+    const conc = m.concl.length;
+    const pr = m.etapas.filter((e) => ['prepfinal', 'implantacao', 'encerramento'].includes(e.k));
+    const [prep, impl, enc] = pr.map((e) => e.n);
+    const ab = m.abertas.length;
+    const ordemSt = ['atrasada', 'vence', 'noprazo', 'semdata', 'semcab', 'bloqueada'];
+    const p = m.piAtual;
+    const cards = [
+      `<div class="card kpi"><span class="rot">Em produção</span><div class="val"><b>${num(conc)}</b><span>de ${num(validas)} · ${pct(conc, validas)}%</span></div>${progresso(conc, validas)}<span class="meta">${hh(m.horas.concl)} estimadas já entregues${m.st.cancelada ? ` · ${pl(m.st.cancelada, 'cancelada fica', 'canceladas ficam')} fora da conta` : ''}</span></div>`,
+      `<div class="card kpi" style="--strip:var(--grad-alert)"><span class="rot">Prontas, sem encerrar</span><div class="val"><b>${num(m.prontas.length)}</b><span>${hh(m.horas.prontas)} construídas</span></div>${barra([
+        { n: enc, cor: 'var(--critical-bg)', tip: `${enc} com a CAB já passada` }, { n: impl, cor: 'var(--at-risk)', tip: `${impl} com CAB agendada` }, { n: prep, cor: 'var(--no-data)', tip: `${prep} sem CAB` }], 'Prontas por situação da CAB')}
+        <span class="meta">${[enc && `<span class="st-critical">▲ ${num(enc)} com a CAB vencida</span>`, impl && `<span class="st-at-risk">◐ ${num(impl)} com CAB agendada</span>`, prep && `— ${num(prep)} sem CAB`].filter(Boolean).join(' · ') || 'nenhuma pronta parada'}</span></div>`,
+      `<div class="card kpi" style="--strip:linear-gradient(90deg,#5C65C4,#D42A2A)"><span class="rot">Abertas fora do prazo</span><div class="val"><b>${num(m.st.atrasada || 0)}</b><span>de ${num(ab)} abertas</span></div>${barra(ordemSt.map((k) => ({ n: m.st[k] || 0, cor: COR_ST[k], tip: `${m.st[k] || 0} · ${ST[k][1]}` })), 'Abertas por situação de prazo')}
+        <span class="meta">${ordemSt.filter((k) => m.st[k]).map((k) => `<span class="st-${ST[k][2]}">${ST[k][0]} ${num(m.st[k])} ${ST[k][1].toLowerCase().replace('cab', 'CAB')}</span>`).join(' · ')}</span></div>`,
+      p ? `<div class="card kpi" style="--strip:linear-gradient(90deg,#AED47E,#4DB5A3)"><span class="rot">${esc(p.pi)} · o PI mais recente</span><div class="val"><b>${num(p.n)}</b><span>${p.n === 1 ? 'demanda' : 'demandas'} · ${num(p.concl)} ${p.concl === 1 ? 'concluída' : 'concluídas'}</span></div>${barra(E.ESTAGIOS.map((s) => ({ n: p.est[s.k] || 0, cor: COR_ESTAGIO[s.k], tip: `${p.est[s.k] || 0} · ${s.nome}` })), `${p.pi} por estágio`)}
+        <span class="meta">${p.atrasadas ? `<span class="st-critical">▲ ${num(p.atrasadas)} ${p.atrasadas === 1 ? 'atrasada' : 'atrasadas'}</span> · ` : ''}${num(p.semdata)} sem data na fase · ${num(p.semEst)} sem estimativa de horas</span></div>` : '',
+    ];
+    $('#secKpi').innerHTML = secH('A esteira', `${pl(m.ds.length, 'demanda', 'demandas')} · ${num(m.pis.length)} PIs · ${hh(m.horas.total)} estimadas`) + `<div class="kpis">${cards.join('')}</div>`;
+  }
+
+  function linhaDemanda(d, extra = '') {
+    return `<tr class="${d.st === 'atrasada' ? 'crit' : ''}"><td>${codBtn(d)}</td><td class="tit">${esc(d.titulo)}<small>${esc([d.area, d.piPlan].filter(Boolean).join(' · '))}${extra}</small></td><td><span class="fase">${esc(d.fase)}</span></td><td>${stTag(d.st)}<br><span class="nota">${esc(prazoTxt(d))}</span></td><td>${esc(d.respAcelen || '—')}</td><td>${esc((d.funcional || []).join(', ') || '—')}</td></tr>`;
+  }
+
+  function renderAcao(m) {
+    const total = m.acao.reduce((s, g) => s + g.itens.length, 0);
+    $('#secAcao').innerHTML = secH('Pedem ação', total ? `${pl(total, 'demanda', 'demandas')}, agrupadas pelo que precisa acontecer` : 'nada pendente') + (total ? `<div class="card"><div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Código</th><th>Demanda</th><th>Fase na lista</th><th>Prazo</th><th>Resp. Acelen</th><th>Funcional</th></tr></thead><tbody>${m.acao.map((g) =>
+        `<tr class="grp"><td colspan="6"><b>${esc(g.titulo)}</b><span>${pl(g.itens.length, 'demanda', 'demandas')} · ${esc(g.nota)}</span></td></tr>${g.itens.map((d) => linhaDemanda(d, d.statusReport ? ` · status: ${esc(d.statusReport.slice(0, 120))}${d.statusReport.length > 120 ? '…' : ''}` : '')).join('')}`).join('')}</tbody></table></div></div>`
+      : '<div class="card aviso good"><h3>Nenhuma demanda bloqueada, atrasada ou vencendo nesta semana</h3></div>');
+  }
+
+  function renderPrazo(m) {
+    const pis = [...new Set(m.aderencia.flatMap((a) => Object.keys(a.porPI)))].sort((a, b) => a.localeCompare(b, 'pt', { numeric: true }));
+    const comBase = m.aderencia.filter((a) => a.n);
+    $('#secPrazo').innerHTML = secH('Prazo planejado × real', 'por fase concluída') + `<div class="card">${comBase.length ? `<div class="linhas">${comBase.map((a) => `<div class="linha"><span class="nome">${esc(a.nome)}</span>${barra([
+      { n: a.ok, cor: 'var(--on-track)', tip: `${a.ok} no prazo` }, { n: a.n - a.ok, cor: 'var(--critical-bg)', tip: `${a.n - a.ok} depois da data` }], `${a.nome}: ${pct(a.ok, a.n)}% no prazo`, 'lg')}
+      <span class="val"><b>${pct(a.ok, a.n)}%</b> <span class="muted">${num(a.ok)} de ${num(a.n)}</span></span>
+      <span class="sub">${a.n - a.ok ? `<span class="st-critical">▲ ${num(a.n - a.ok)} depois da data</span> · média de ${num(Math.round(a.atrasoMedio * 10) / 10)} dias` : 'todas no prazo'} · ${pis.filter((p) => a.porPI[p]).map((p) => `${esc(p)} ${a.porPI[p].ok}/${a.porPI[p].n}`).join(' · ')}</span></div>`).join('')}</div>`
+      : '<div class="card-p nota">Nenhuma demanda tem data planejada e real da mesma fase.</div>'}
+      <p class="nota nota-pe">Só entram demandas com as duas datas preenchidas na fase; no prazo é real ≤ planejado. ${m.aderencia.map((a) => `${esc(a.nome)}: ${num(a.n)}`).join(' · ')} medições.</p></div>`;
+  }
+
+  function renderProximas(m) {
+    const fim = new Date(Date.UTC(...m.corte.split('-').map((x, i) => (i === 1 ? x - 1 : +x))) + 28 * 864e5).toISOString().slice(0, 10);
+    const semanas = [];
+    m.proximas.forEach((x) => {
+      const d = E.dia(x.data);
+      const seg = d - ((new Date(d * 864e5).getUTCDay() + 6) % 7);
+      const k = new Date(seg * 864e5).toISOString().slice(0, 10);
+      const s = semanas.at(-1);
+      if (s && s.k === k) s.itens.push(x); else semanas.push({ k, itens: [x] });
+    });
+    $('#secProximas').innerHTML = secH('Próximas 4 semanas', `marcos planejados de ${dt(m.corte)} a ${dt(fim)}`) + `<div class="card">${semanas.length ? `<div class="tbl-wrap"><table class="tbl"><tbody>${semanas.map((s) =>
+      `<tr class="grp"><td colspan="4"><b>Semana de ${dt(s.k)}</b><span>${pl(s.itens.length, 'marco', 'marcos')}</span></td></tr>${s.itens.map((x) => `<tr><td class="nw">${dt(x.data)}</td><td>${codBtn(x.d)}</td><td class="tit">${esc(x.d.titulo)}</td><td class="nw">${x.marco === 'CAB' ? '<b>CAB</b>' : esc(x.marco)}</td></tr>`).join('')}`).join('')}</tbody></table></div>`
+      : '<div class="card-p nota">Nenhum fim de fase ou CAB planejado nas próximas quatro semanas.</div>'}</div>`;
+  }
+
+  function renderPi(m) {
+    const leg = E.ESTAGIOS.map((s) => `<span><i class="sw" style="background:${COR_ESTAGIO[s.k]}"></i>${esc(s.nome)}</span>`).join('');
+    $('#secPi').innerHTML = secH('Cadência por PI', 'estágio atual das demandas de cada PI planejado') + `<div class="card"><div class="card-h"><div class="leg">${leg}</div></div><div class="linhas">${m.pis.map((p) => {
+      const carry = Object.entries(p.carry);
+      return `<div class="linha"><span class="nome"><b>${esc(p.pi)}</b> <span class="muted">· ${num(p.n)}</span></span>${barra(E.ESTAGIOS.map((s) => ({ n: p.est[s.k] || 0, cor: COR_ESTAGIO[s.k], tip: `${p.pi} · ${s.nome}: ${p.est[s.k] || 0}` })), `${p.pi} por estágio`, 'lg')}
+      <span class="val">${num(p.concl)} ${p.concl === 1 ? 'concluída' : 'concluídas'}</span>
+      <span class="sub">${p.concl ? `${num(p.proprio)} no próprio PI${carry.length ? ` · carry-over: ${carry.map(([pi, n]) => `${num(n)} no ${esc(pi)}`).join(', ')}` : ''} · ` : ''}${hh(p.horas)}${p.semEst ? ` (${num(p.semEst)} sem estimativa)` : ''}${p.ciclo != null ? ` · ciclo planejado ${num(p.ciclo)} d` : ''}${p.atrasadas ? ` · <span class="st-critical">▲ ${num(p.atrasadas)} ${p.atrasadas === 1 ? 'atrasada' : 'atrasadas'}</span>` : ''}</span></div>`;
+    }).join('')}</div><p class="nota nota-pe">Ciclo planejado é a mediana de Data de Início → Data de Entrega Pronto. Concluída no próprio PI: PI Entregue igual ao PI Planning.</p></div>`;
+  }
+
+  function renderCab(m) {
+    const mx = Math.max(1, ...m.meses.map((x) => x.passou + x.agendada));
+    const mesCorte = m.corte.slice(0, 7);
+    const total = m.meses.reduce((s, x) => s + x.passou + x.agendada, 0);
+    const ag = m.meses.reduce((s, x) => s + x.agendada, 0);
+    $('#secCab').innerHTML = secH('CABs por mês', `${pl(total, 'data CAB registrada', 'datas CAB registradas')} · ${num(ag)} ${ag === 1 ? 'agendada' : 'agendadas'} a partir do corte`) + `<div class="card">${m.meses.length ? `<div class="card-h"><div class="leg"><span><i class="sw" style="background:var(--e4)"></i>data já passou</span><span><i class="sw" style="background:var(--e2)"></i>agendada</span></div></div>
+      <div class="colunas" role="img" aria-label="CABs por mês">${m.meses.map((x) => `<div class="col" data-tip="${esc(`${MESES[+x.mes.slice(5) - 1]} ${x.mes.slice(0, 4)}: ${x.passou} passou · ${x.agendada} agendada`)}"><span class="q">${x.passou + x.agendada || ''}</span><div class="pilha">${x.agendada ? `<span style="height:${(120 * x.agendada) / mx}px;background:var(--e2)"></span>` : ''}${x.passou ? `<span style="height:${(120 * x.passou) / mx}px;background:var(--e4)"></span>` : ''}</div></div>`).join('')}</div>
+      <div class="col-rot">${m.meses.map((x) => `<span class="${x.mes === mesCorte ? 'hoje' : ''}">${MESES[+x.mes.slice(5) - 1]}${x.mes.slice(5) === '01' ? ` ${x.mes.slice(2, 4)}` : ''}</span>`).join('')}</div>` : '<div class="card-p nota">Nenhuma Data CAB registrada.</div>'}
+      <p class="nota nota-pe">Conta a Data CAB da lista. A lista não tem data real de CAB: uma data que já passou não confirma que a subida aconteceu.</p></div>`;
+  }
+
+  function renderArea(m) {
+    const pis = m.pis.map((p) => p.pi);
+    const mx = Math.max(1, ...m.areas.flatMap((a) => pis.map((p) => a.porPI[p] || 0)));
+    const tot = (f) => m.areas.reduce((s, a) => s + f(a), 0);
+    $('#secArea').innerHTML = secH('Área × PI', 'demandas por PI planejado') + `<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Área</th>${pis.map((p) => `<th class="r">${esc(p)}</th>`).join('')}<th class="r">Total</th><th class="r">Horas estimadas</th><th class="r">h / demanda</th><th class="r">Abertas</th><th class="r">Atrasadas</th></tr></thead><tbody>${m.areas.map((a) =>
+      `<tr><td>${esc(a.area)}</td>${pis.map((p) => { const v = a.porPI[p] || 0; return `<td class="r heat" style="background:color-mix(in srgb, var(--heat) ${v ? Math.round(8 + (40 * v) / mx) : 0}%, transparent)">${v || '–'}</td>`; }).join('')}<td class="r"><b>${num(a.n)}</b></td><td class="r">${hh(a.horas)}</td><td class="r">${a.hMedia != null ? num(Math.round(a.hMedia)) : '–'}</td><td class="r">${num(a.abertas)}</td><td class="r">${a.atrasadas ? `<span class="st-critical">▲ ${num(a.atrasadas)}</span>` : '–'}</td></tr>`).join('')}
+      <tr><td><b>Total</b></td>${pis.map((p) => `<td class="r"><b>${num(tot((a) => a.porPI[p] || 0))}</b></td>`).join('')}<td class="r"><b>${num(m.ds.length)}</b></td><td class="r"><b>${hh(m.horas.total)}</b></td><td class="r">${(() => { const c = m.ds.filter((d) => d.horas != null); return c.length ? num(Math.round(m.horas.total / c.length)) : '–'; })()}</td><td class="r"><b>${num(m.abertas.length)}</b></td><td class="r"><b>${num(m.st.atrasada || 0)}</b></td></tr></tbody></table></div></div>`;
+  }
+
+  function renderPessoas(m) {
+    const OP = { respAcelen: 'Responsável Acelen', funcional: 'Funcional Avvale', abap: 'ABAP Avvale' };
+    const COM = { respAcelen: 'com responsável Acelen', funcional: 'com funcional atribuído', abap: 'com ABAP atribuído' };
+    const r = m.pessoas[estado.pessoas];
+    const mx = Math.max(1, ...r.lista.map((p) => p.abertas));
+    const top = r.lista.slice(0, 8);
+    $('#secPessoas').innerHTML = secH('Pessoas', 'quem tem demanda aberta') + `<div class="card"><div class="filtros" role="group" aria-label="Lado">${Object.entries(OP).map(([k, v]) => `<button type="button" class="chip" data-pessoas="${k}" aria-pressed="${estado.pessoas === k}">${v}</button>`).join('')}</div>
+      <div class="linhas">${top.length ? top.map((p) => `<div class="linha"><span class="nome" title="${esc(p.nome)}">${esc(p.nome)}</span>${progresso(p.abertas, mx, 'var(--e3)')}<span class="val"><b>${num(p.abertas)}</b> <span class="muted">${p.abertas === 1 ? 'aberta' : 'abertas'}</span></span>
+      <span class="sub">${num(p.total)} no total · ${pct(p.total, r.comAtrib)}% das ${num(r.comAtrib)} ${COM[estado.pessoas]}${p.atrasadas ? ` · <span class="st-critical">▲ ${num(p.atrasadas)} ${p.atrasadas === 1 ? 'atrasada' : 'atrasadas'}</span>` : ''}</span></div>`).join('') : '<div class="card-p nota">Ninguém atribuído.</div>'}</div>
+      <p class="nota nota-pe">${r.lista.length > top.length ? `Mais ${pl(r.lista.length - top.length, 'pessoa', 'pessoas')} com menos demandas abertas. ` : ''}Demanda com mais de uma pessoa conta para cada uma.</p></div>`;
+  }
+
+  function renderQualidade(m) {
+    const q = m.qualidade;
+    const mot = Object.entries(q.motivosUat).sort((a, b) => b[1] - a[1]);
+    $('#secQualidade').innerHTML = secH('Qualidade da entrega', `${pl(m.replan.total, 'replanejamento', 'replanejamentos')} em ${pl(m.replan.demandas, 'demanda', 'demandas')}`) + `<div class="card"><div class="mini">
+      <div><b>${num(q.cr.sim)}</b><span>com Change Request, de ${num(q.cr.n)} com o campo preenchido (${pct(q.cr.sim, q.cr.n)}%)</span></div>
+      <div><b>${num(q.hypercare.sim)}</b><span>precisaram de hypercare, de ${num(q.hypercare.n)} com resposta (${pct(q.hypercare.sim, q.hypercare.n)}%)</span></div>
+      <div><b>${num(q.uatRodadas)}</b><span>com mais de uma rodada de UAT${mot.length ? ` · motivos: ${mot.map(([k, n]) => `${esc(k)} ${n}`).join(', ')}` : ''}</span></div>
+      ${m.replan.porFase.map((f) => `<div><b>${num(f.n)}</b><span>${f.n === 1 ? 'replanejamento' : 'replanejamentos'} ${f.nome === 'Encerramento' ? 'no' : 'na'} ${esc(f.nome.toLowerCase())}</span></div>`).join('')}
+    </div>
+    <div class="card-p" style="border-top:1px solid var(--border-soft)"><div class="aviso warn"><h3>O que não é medido</h3><p>Qtd de Incidentes preenchida em ${num(q.incidentes)} de ${num(m.ds.length)}; Nº do Charm em ${num(q.charm)}. “Demanda Aprovada no Primeiro Teste?” marca ${num(q.aprov1.sim)} sim e ${num(q.aprov1.nao)} não, mas o campo desmarcado não separa reprovação de falta de preenchimento: a taxa de aprovação no 1º teste não é confiável.</p></div></div>
+    ${m.replan.historicos.length ? `<details class="hist"><summary>Histórico de replanejamento registrado (${num(m.replan.historicos.length)})</summary><ul>${m.replan.historicos.map((x) => `<li>${codBtn(x.d)} · <b>${esc(x.fase)}</b> · ${esc(x.d.titulo)}<div class="nota" style="white-space:pre-line">${esc(x.texto)}</div></li>`).join('')}</ul></details>` : ''}</div>`;
+  }
+
+  function renderDado(m) {
+    const ids = (xs) => xs.slice(0, 14).map((d) => codBtn(d)).join(' ') + (xs.length > 14 ? ` <span class="muted">+${xs.length - 14}</span>` : '');
+    $('#secDado').innerHTML = secH('Qualidade do cadastro', m.cadastro.length ? `${pl(m.cadastro.length, 'campo impede', 'campos impedem')} uma leitura completa` : 'nenhuma lacuna nos campos conferidos') + (m.cadastro.length ? `<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Campo</th><th class="r">Falta</th><th>Consequência</th><th>Demandas</th></tr></thead><tbody>${m.cadastro.map((x) =>
+      `<tr><td>${x.derivado ? esc(x.campo) : `<span class="cod" style="color:var(--ink-1)">${esc(x.campo)}</span>`}</td><td class="r nw">${x.rotulo ? esc(x.rotulo) : `<b>${num(x.itens.length)}</b>${x.base != null ? ` <span class="muted">de ${num(x.base)} ${esc(x.baseNome)}</span>` : ''}`}</td><td class="nota">${esc(x.efeito)}</td><td>${x.semIds ? `<span class="muted">${x.itens.length === x.base ? 'todas' : 'quase todas'}</span>` : ids(x.itens)}</td></tr>`).join('')}</tbody></table></div>
+      <p class="nota nota-pe">Onde o número não existe, este report mostra o nome do campo em vez de estimar.</p></div>` : '');
+  }
+
+  // ---------- todas as demandas ----------
+  const ORDEM_ST = ['atrasada', 'bloqueada', 'vence', 'semcab', 'semdata', 'noprazo', 'concluida', 'cancelada'];
+  const FILTROS_ST = [['abertas', 'Abertas'], ['atrasada', 'Atrasadas'], ['vence', 'Vencem em 7 dias'], ['noprazo', 'No prazo'], ['semdata', 'Sem data'], ['semcab', 'Sem CAB'], ['bloqueada', 'Bloqueadas'], ['concluida', 'Concluídas'], ['cancelada', 'Canceladas'], ['todas', 'Todas']];
+  const passaSt = (d, k) => (k === 'todas' ? true : k === 'abertas' ? d.st !== 'concluida' && d.st !== 'cancelada' : d.st === k);
+
+  function renderTodas(m) {
+    const f = estado.filtro;
+    const pis = m.pis.map((p) => p.pi);
+    const areas = m.areas.map((a) => a.area);
+    $('#secTodas').innerHTML = secH('Todas as demandas', 'clique numa linha para ver datas, pessoas e histórico') + `<div class="card"><div class="filtros" role="group" aria-label="Filtros">
+      ${FILTROS_ST.map(([k, v]) => { const n = m.ds.filter((d) => passaSt(d, k)).length; return n || k === f.st ? `<button type="button" class="chip" data-st="${k}" aria-pressed="${f.st === k}">${v} ${num(n)}</button>` : ''; }).join('')}
+      <select id="fPi" aria-label="PI"><option value="">Todos os PIs</option>${pis.map((p) => `<option ${f.pi === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
+      <select id="fArea" aria-label="Área"><option value="">Todas as áreas</option>${areas.map((a) => `<option ${f.area === a ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>
+      <select id="fEtapa" aria-label="Etapa do fluxo"><option value="">Todas as etapas</option>${E.ETAPAS.map((e) => `<option value="${e.k}" ${f.etapa === e.k ? 'selected' : ''}>${esc(e.nome)}</option>`).join('')}</select>
+      <input id="fBusca" type="search" placeholder="Código, título ou pessoa" value="${esc(f.q)}" aria-label="Buscar">
+      <span class="conta" id="fConta"></span></div><div class="tbl-wrap" id="tabTodas"></div></div>`;
+    renderLinhas();
+  }
+
+  function renderLinhas() {
+    const m = estado.modelo;
+    const f = estado.filtro;
+    const q = f.q.trim().toLowerCase();
+    const xs = m.ds.filter((d) => passaSt(d, f.st) && (!f.pi || (d.piPlan || 'Sem PI') === f.pi) && (!f.area || (d.area || 'Sem área') === f.area) && (!f.etapa || d.etapa === f.etapa)
+      && (!q || [d.id, d.titulo, d.respAcelen, ...(d.funcional || []), ...(d.abap || [])].some((v) => String(v ?? '').toLowerCase().includes(q))))
+      .sort((a, b) => ORDEM_ST.indexOf(a.st) - ORDEM_ST.indexOf(b.st) || (a.dias ?? 0) - (b.dias ?? 0) || String(b.r_concluido || b.cab || '').localeCompare(String(a.r_concluido || a.cab || '')) || String(b.id).localeCompare(String(a.id), 'pt', { numeric: true }));
+    $('#fConta').textContent = `Mostrando ${num(xs.length)} de ${num(m.ds.length)}`;
+    $('#tabTodas').innerHTML = xs.length ? `<table class="tbl"><thead><tr><th>Código</th><th>Demanda</th><th>PI</th><th>Fase na lista</th><th>Situação</th><th class="r">Horas</th><th>Resp. Acelen</th></tr></thead><tbody>${xs.map((d) => {
+      const ab = estado.abertas.has(d.chave);
+      return `<tr class="lin${d.st === 'atrasada' ? ' crit' : ''}" data-k="${esc(d.chave)}" aria-expanded="${ab}"><td style="white-space:nowrap"><button type="button" class="exp" aria-label="Detalhes de ${esc(d.id)}" aria-expanded="${ab}">▶</button><span class="cod">${esc(d.id)}</span></td><td class="tit">${esc(d.titulo)}<small>${esc(d.area || '')}</small></td><td style="white-space:nowrap">${esc(d.piPlan || '—')}</td><td><span class="fase">${esc(d.fase || '—')}</span></td><td>${stTag(d.st)}<br><span class="nota">${esc(prazoTxt(d))}</span></td><td class="r">${d.horas != null ? num(d.horas) : '<span class="muted">—</span>'}</td><td>${esc(d.respAcelen || '—')}</td></tr>${ab ? `<tr class="det"><td colspan="7">${detalhe(d)}</td></tr>` : ''}`;
+    }).join('')}</tbody></table>` : '<div class="card-p nota">Nenhuma demanda com esses filtros.</div>';
+  }
+
+  function detalhe(d) {
+    const marcos = [['Início', 'p_inicio', 'r_inicio'], ['Refinamento', 'p_refinamento', 'r_refinamento'], ['Construção', 'p_construcao', 'r_construcao'],
+      ['Homologação', 'p_homologacao', 'r_homologacao'], ['Pronto', 'p_pronto', 'r_pronto'], ['CAB', 'cab', null], ['Concluído', null, 'r_concluido']];
+    const lin = (rot, v) => (v == null || v === '' || (Array.isArray(v) && !v.length) ? '' : `<dt>${rot}</dt><dd>${esc(Array.isArray(v) ? v.join(', ') : v)}</dd>`);
+    const bool = (v) => (v === true ? 'sim' : v === false ? 'não' : null);
+    const hist = [['Construção', 'rq_construcao', 'rh_construcao'], ['Homologação', 'rq_homologacao', 'rh_homologacao'], ['Encerramento', 'rq_concluido', 'rh_concluido']].filter(([, q, h]) => d[q] || d[h]);
+    return `<div class="det-grid">
+      <div><h4>Marcos</h4><table class="marcos"><thead><tr><th></th><th>Planejado</th><th>Real</th><th></th></tr></thead><tbody>${marcos.map(([rot, p, r]) => {
+        const dif = p && r && d[p] && d[r] ? E.dia(d[r]) - E.dia(d[p]) : null;
+        return `<tr><th>${rot}</th><td>${p ? dt(d[p]) : ''}</td><td>${r ? dt(d[r]) : ''}</td><td>${dif == null ? '' : dif > 0 ? `<span class="st-critical">+${dif} d</span>` : `<span class="st-on-track">${dif} d</span>`}</td></tr>`;
+      }).join('')}</tbody></table></div>
+      <div><h4>Demanda</h4><dl>${lin('Fase', d.fase)}${lin('Área', d.area)}${lin('Frente', d.frente)}${lin('Funcional', d.funcional)}${lin('ABAP', d.abap)}${lin('Resp. Acelen', d.respAcelen)}${lin('Classificação', d.classe)}${lin('Tamanho', d.tamanho)}
+        ${lin('Horas', d.horas != null ? `${num(d.horas)} h${d.horasFunc != null || d.horasAbap != null ? ` (funcional ${num(d.horasFunc ?? 0)} · ABAP ${num(d.horasAbap ?? 0)})` : ''}` : null)}${lin('PI', [d.piPlan, d.piEntregue && d.piEntregue !== d.piPlan ? `entregue no ${d.piEntregue}` : ''].filter(Boolean).join(' · '))}
+        ${lin('Sprint', [d.sprintPlan && `baseline ${d.sprintPlan}`, d.sprintReal && `real ${d.sprintReal}`].filter(Boolean).join(' · '))}${lin('Nº do Charm', d.charm)}</dl></div>
+      <div><h4>Qualidade</h4><dl>${lin('Change Request', bool(d.cr))}${lin('Hypercare', bool(d.hypercare))}${lin('Aprovada no 1º teste', bool(d.aprov1))}${lin('Rodadas de UAT', d.rodadasUat)}${lin('Motivos UAT', d.motivosUat)}${lin('Incidentes', d.incidentes)}</dl>
+        ${hist.map(([nome, q, h]) => `<p class="texto" style="margin-top:8px"><b>Replanejamento ${nome === 'Encerramento' ? 'no' : 'na'} ${nome.toLowerCase()}${d[q] ? ` (${d[q]})` : ''}:</b> ${esc(d[h] || '')}</p>`).join('')}</div>
+      ${d.statusReport ? `<div style="grid-column:1/-1"><h4>Status report semanal</h4><p class="texto">${esc(d.statusReport)}</p></div>` : ''}
+    </div>`;
+  }
+
+  function renderMetodo(m) {
+    const s = m.snap;
+    const quando = new Date(s.exportadoEm);
+    $('#secMetodo').innerHTML = secH('Como os números são calculados') + `<div class="card"><div class="metodo">
+      <p><b>Fonte.</b> ${esc(s.arquivo || 'exportação')} · ${pl(s.total, 'linha', 'linhas')} · exportada em ${dt(s.corte, true)}, ${quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}${s.autor ? ` por ${esc(s.autor)}` : ''}. ${s.colunasAusentes.length ? `Colunas ausentes no arquivo: ${s.colunasAusentes.map(esc).join(', ')}.` : 'Todas as colunas esperadas estão no arquivo.'}</p>
+      <p><b>Data de corte.</b> A data em que a planilha foi exportada (${dt(s.corte, true)}), não a data de hoje. Todo “passou da data” e “vence em 7 dias” é contado a partir dela.</p>
+      <p><b>Prazo da demanda aberta.</b> A data planejada que encerra a fase atual: Backlog → Data de Início; Em Refinamento → Data de Entrega Refinamento; Em Construção → Data de Entrega Construção; Em Homologação → Data de Entrega Homologação; Pronto/Em Encerramento → Data CAB. Sem essa data, a demanda fica “sem data” e não entra na conta de atraso.</p>
+      <p><b>Fluxo macro.</b> ${[...new Set(E.ETAPAS.map((e) => e.grupo))].map((g) => `${esc(g)}: ${E.ETAPAS.filter((e) => e.grupo === g).map((e) => `${esc(e.nome)} ← ${esc(e.fonte)}`).join('; ')}`).join('. ')}. Pronto/Em Encerramento se divide pela Data CAB: sem data, futura ou já passada. Bloqueadas e canceladas ficam fora do fluxo.</p>
+      <p><b>Prazo planejado × real.</b> Real ≤ planejado nas datas de Refinamento, Construção, Homologação e Pronto. Só entram demandas com as duas datas preenchidas.</p>
+      <p><b>PI.</b> PI Planning. Concluída no próprio PI: PI Entregue igual ao PI Planning. Carry-over: PI Entregue posterior. Horas: QtdHoras (estimativa).</p>
+      <p><b>Pessoas.</b> Funcional e ABAP vêm no formato do SharePoint (nome;#id); fica o nome. Demanda com mais de uma pessoa conta para cada uma.</p>
+      <p><b>Comparação.</b> Cada exportação carregada fica guardada com a data de corte. A seção de mudanças compara a exportação aberta com a anterior, demanda a demanda, pelo NumeroDemanda (e pelo título, quando o número se repete).</p>
+    </div></div>`;
+  }
+
+  // ---------- exportações: carregar, guardar, escolher ----------
+  const PARTE = 100; // demandas por documento: um documento guarda no máximo 256 KB
+  function mostrarMsg(txt, erro) { const el = $('#msg'); el.textContent = txt; el.className = `msg${erro ? ' erro' : ''}`; el.hidden = !txt; }
+
+  async function lerArquivo(file) {
+    if (!file) return;
+    mostrarMsg(`Lendo ${file.name}…`);
+    let snap;
+    try {
+      snap = E.normalizar(await E.lerXlsx(await file.arrayBuffer()), file.name, file.lastModified);
+    } catch (e) {
+      mostrarMsg(e.message || 'Não consegui ler o arquivo.', true);
+      return;
+    }
+    snap.carregadoEm = new Date().toISOString();
+    estado.cache.set(snap.id, snap);
+    if (estado.db && estado.podeGravar !== false) {
+      const b = $('#btnCarregar');
+      b.disabled = true; b.textContent = 'Salvando…';
+      try {
+        await salvar(snap);
+        mostrarMsg(`Exportação de ${dt(snap.corte, true)} guardada: ${pl(snap.total, 'demanda', 'demandas')}. Quem abre este report passa a ver esta versão.`);
+      } catch (e) {
+        local(snap);
+        mostrarMsg(e && e.code === 'invalid_argument' ? 'Seu acesso a este report é de leitura: a exportação aparece só para você, nesta visita.' : `Não consegui guardar a exportação (${(e && (e.message || e.code)) || 'erro'}). Ela aparece só para você, nesta visita.`, true);
+      } finally {
+        b.disabled = false; b.textContent = 'Carregar exportação';
+      }
+    } else {
+      local(snap);
+      mostrarMsg(`Exportação de ${dt(snap.corte, true)} lida no navegador: ${pl(snap.total, 'demanda', 'demandas')}. Nada foi enviado; para guardar o histórico, carregue pelo report publicado.`);
+    }
+    estado.selecionada = snap.id;
+    atualizarSeletor();
+    await mostrarSelecionada();
+  }
+
+  function metaDe(s) { const { demandas, ...meta } = s; return meta; }
+  function local(snap) {
+    estado.exportacoes = [...estado.exportacoes.filter((x) => x.id !== snap.id), metaDe(snap)].sort((a, b) => b.corte.localeCompare(a.corte));
+  }
+
+  async function salvar(snap) {
+    const db = estado.db;
+    const partes = [];
+    for (let i = 0; i < snap.demandas.length; i += PARTE) partes.push(snap.demandas.slice(i, i + PARTE));
+    for (let i = 0; i < partes.length; i++) await db.doc(`exportacoes/${snap.id}/partes/${i}`).set({ demandas: partes[i] });
+    await db.doc(`exportacoes/${snap.id}`).set({ ...metaDe(snap), partes: partes.length });
+  }
+
+  async function snapDe(id) {
+    if (estado.cache.has(id)) return estado.cache.get(id);
+    const meta = estado.exportacoes.find((x) => x.id === id);
+    if (!meta || !estado.db) return null;
+    const docs = await Promise.all(Array.from({ length: meta.partes || 0 }, (_, i) => estado.db.doc(`exportacoes/${id}/partes/${i}`).get()));
+    const snap = { ...meta, demandas: docs.flatMap((d) => (d.exists ? d.data().demandas || [] : [])) };
+    estado.cache.set(id, snap);
+    return snap;
+  }
+
+  async function mostrarSelecionada() {
+    const lista = estado.exportacoes;
+    const i = lista.findIndex((x) => x.id === estado.selecionada);
+    if (i < 0) return;
+    try {
+      const [snap, ant] = await Promise.all([snapDe(lista[i].id), lista[i + 1] ? snapDe(lista[i + 1].id) : null]);
+      if (!snap || !snap.demandas.length) { mostrarMsg('A exportação guardada veio vazia. Carregue o arquivo de novo.', true); return; }
+      render(E.analisar(snap, ant && ant.demandas.length ? ant : null));
+    } catch (e) {
+      mostrarMsg(`Não consegui abrir a exportação (${(e && (e.message || e.code)) || 'erro'}).`, true);
+    }
+  }
+
+  function atualizarSeletor() {
+    const sel = $('#selExp');
+    sel.innerHTML = estado.exportacoes.map((x) => `<option value="${esc(x.id)}" ${x.id === estado.selecionada ? 'selected' : ''}>${esc(dt(x.corte, true))} · ${num(x.total)}</option>`).join('');
+    $('#selExpRot').hidden = estado.exportacoes.length < 2;
+  }
+
+  async function iniciarDb() {
+    const claude = globalThis.claude;
+    if (!claude || typeof claude.use !== 'function') return;
+    $('#vazioTit').textContent = 'Abrindo as exportações guardadas…';
+    let db = null;
+    try { db = await claude.use('db'); } catch { db = null; }
+    if (!db) { $('#vazioTit').textContent = 'Nenhuma exportação carregada'; return; }
+    estado.db = db;
+    try { const user = await claude.use('user'); estado.podeGravar = user ? await user.can('data.write') : null; } catch { estado.podeGravar = null; }
+    db.collection('exportacoes').onSnapshot((snap) => {
+      const locais = estado.exportacoes.filter((x) => !snap.docs.some((d) => d.id === x.id) && estado.cache.has(x.id));
+      estado.exportacoes = [...snap.docs.map((d) => ({ id: d.id, ...d.data() })), ...locais].sort((a, b) => b.corte.localeCompare(a.corte));
+      if (!estado.exportacoes.length) {
+        $('#vazioTit').textContent = 'Nenhuma exportação carregada';
+        if (estado.podeGravar === false) $('#vazioTxt').textContent = 'Ainda não há exportação guardada neste report, e seu acesso é de leitura. Peça a quem mantém o report para carregar a exportação da semana.';
+        return;
+      }
+      if (!estado.exportacoes.some((x) => x.id === estado.selecionada)) estado.selecionada = estado.exportacoes[0].id;
+      atualizarSeletor();
+      mostrarSelecionada();
+    }, () => { $('#vazioTit').textContent = 'Nenhuma exportação carregada'; });
+  }
+
+  function abrirDemanda(chave) {
+    estado.filtro = { st: 'todas', pi: '', area: '', etapa: '', q: '' };
+    estado.abertas.add(chave);
+    renderTodas(estado.modelo);
+    const tr = document.querySelector(`tr.lin[data-k="${CSS.escape(chave)}"]`);
+    if (tr) { tr.scrollIntoView({ behavior: 'smooth', block: 'center' }); tr.querySelector('.exp').focus({ preventScroll: true }); }
+  }
+  function irParaTabela() { renderTodas(estado.modelo); $('#secTodas').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+
+  // ---------- eventos ----------
+  $('#btnCarregar').addEventListener('click', () => $('#arquivo').click());
+  $('#arquivo').addEventListener('change', (e) => { lerArquivo(e.target.files[0]); e.target.value = ''; });
+  $('#selExp').addEventListener('change', (e) => { estado.selecionada = e.target.value; mostrarSelecionada(); });
+  $('#btnPrincipal').addEventListener('click', (e) => { estado.filtro = { st: e.currentTarget.dataset.st, pi: '', area: '', etapa: '', q: '' }; irParaTabela(); });
+
+  document.addEventListener('click', (e) => {
+    const t = e.target;
+    const abrir = t.closest('[data-abrir]');
+    if (abrir) { abrirDemanda(abrir.dataset.abrir); return; }
+    const cap = t.closest('[data-etapa]');
+    if (cap) {
+      const k = cap.dataset.etapa;
+      estado.filtro = { st: 'todas', pi: '', area: '', etapa: estado.filtro.etapa === k ? '' : k, q: '' };
+      if (!estado.filtro.etapa) estado.filtro.st = 'abertas';
+      document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.etapa === estado.filtro.etapa)));
+      irParaTabela();
+      return;
+    }
+    const chipSt = t.closest('[data-st]');
+    if (chipSt && chipSt.classList.contains('chip')) { estado.filtro.st = chipSt.dataset.st; renderTodas(estado.modelo); return; }
+    const chipP = t.closest('[data-pessoas]');
+    if (chipP) { estado.pessoas = chipP.dataset.pessoas; renderPessoas(estado.modelo); return; }
+    const lin = t.closest('tr.lin');
+    if (lin && !t.closest('a')) {
+      const k = lin.dataset.k;
+      if (estado.abertas.has(k)) estado.abertas.delete(k); else estado.abertas.add(k);
+      renderLinhas();
+      const de = document.querySelector(`tr.lin[data-k="${CSS.escape(k)}"] .exp`);
+      if (de && t.closest('.exp')) de.focus();
+    }
+  });
+  document.addEventListener('change', (e) => {
+    const id = e.target.id;
+    if (id === 'fPi') estado.filtro.pi = e.target.value;
+    else if (id === 'fArea') estado.filtro.area = e.target.value;
+    else if (id === 'fEtapa') {
+      estado.filtro.etapa = e.target.value;
+      document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.etapa === estado.filtro.etapa)));
+    } else return;
+    renderLinhas();
+  });
+  document.addEventListener('input', (e) => { if (e.target.id === 'fBusca') { estado.filtro.q = e.target.value; renderLinhas(); } });
+
+  // soltar o arquivo em qualquer lugar da página
+  let arrastando = 0;
+  const temArquivo = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+  document.addEventListener('dragenter', (e) => { if (temArquivo(e)) { arrastando++; $('#drop').hidden = false; } });
+  document.addEventListener('dragleave', () => { if (--arrastando <= 0) { arrastando = 0; $('#drop').hidden = true; } });
+  document.addEventListener('dragover', (e) => { if (temArquivo(e)) e.preventDefault(); });
+  document.addEventListener('drop', (e) => {
+    if (!temArquivo(e)) return;
+    e.preventDefault(); arrastando = 0; $('#drop').hidden = true;
+    lerArquivo(e.dataTransfer.files[0]);
+  });
+
+  // dica de valor nas barras
+  const tip = $('#tip');
+  document.addEventListener('pointerover', (e) => {
+    const el = e.target.closest && e.target.closest('[data-tip]');
+    if (!el) { tip.hidden = true; return; }
+    tip.textContent = el.dataset.tip;
+    tip.hidden = false;
+    const r = el.getBoundingClientRect();
+    const x = Math.max(8, Math.min(r.left + r.width / 2 - tip.offsetWidth / 2, innerWidth - tip.offsetWidth - 8));
+    const y = r.top - tip.offsetHeight - 8 < 8 ? r.bottom + 8 : r.top - tip.offsetHeight - 8;
+    tip.style.left = `${x}px`; tip.style.top = `${y}px`;
+  });
+  addEventListener('scroll', () => { tip.hidden = true; }, { passive: true });
+
+  // Uma cópia do report pode trazer a exportação embutida (<script type="application/json"
+  // id="exportacaoEmbutida">): abre já preenchida, sem precisar carregar o arquivo.
+  const embutida = document.getElementById('exportacaoEmbutida');
+  if (embutida) {
+    try {
+      const snap = JSON.parse(embutida.textContent);
+      estado.cache.set(snap.id, snap);
+      local(snap);
+      estado.selecionada = snap.id;
+      atualizarSeletor();
+      mostrarSelecionada();
+    } catch { mostrarMsg('A exportação embutida nesta cópia não abriu.', true); }
+  }
+  iniciarDb();
+})();
+</script>
+</body>
+</html>
