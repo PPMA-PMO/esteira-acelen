@@ -89,7 +89,7 @@ a:hover { color: var(--link-hover); }
 .band { background: var(--grad-hero); color: var(--on-dark-1); position: relative; overflow: hidden; }
 .band :focus-visible { outline-color: var(--leaf); }
 .band .wrap { position: relative; z-index: 1; padding-block: 20px 22px; }
-.band-mark { position: absolute; right: -80px; top: -110px; width: 470px; height: 470px; opacity: .26; pointer-events: none; }
+.band-mark { position: absolute; right: -80px; top: -110px; width: 470px; height: 470px; opacity: .26; pointer-events: none; -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent 72%); mask-image: linear-gradient(to bottom, #000 45%, transparent 72%); }
 .topo { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; }
 .lockup { display: flex; align-items: center; gap: 12px; }
 .lockup svg { width: 34px; height: 34px; flex: none; }
@@ -127,11 +127,11 @@ a:hover { color: var(--link-hover); }
 .tg { flex: var(--n) 1 0; min-width: min(100%, calc(var(--n) * 128px)); }
 .tg-nome { font-size: 11px; letter-spacing: .13em; text-transform: uppercase; color: var(--leaf); padding-top: 7px; border-top: 2px solid rgba(174, 212, 126, .45); margin-bottom: 8px; }
 .tg-caps { display: flex; flex-wrap: wrap; gap: 6px; }
-.cap { flex: 1 1 118px; text-align: left; border-radius: 999px; padding: 8px 16px 9px; background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .12); color: var(--on-dark-1); cursor: pointer; min-width: 0; }
+.cap { flex: 1 1 118px; text-align: left; border-radius: 999px; padding: 8px 16px 9px; background: rgba(6, 10, 13, .3); border: 1px solid rgba(255, 255, 255, .12); color: var(--on-dark-1); cursor: pointer; min-width: 0; }
 .cap:hover { background: rgba(255, 255, 255, .12); }
 .cap { padding-inline: 14px; }
 .cap b { display: block; font-size: 13px; font-weight: 600; line-height: 1.25; }
-.cap > span { display: block; font-size: 11.5px; color: var(--on-dark-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cap > span { display: block; font-size: 11.5px; color: var(--on-dark-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cap .q { font: 700 16px/1.25 var(--font-display); color: var(--on-dark-1); }
 .cap.vazia { background: transparent; border-style: dashed; border-color: rgba(255, 255, 255, .2); }
 .cap.vazia b { color: var(--on-dark-2); }
@@ -146,6 +146,13 @@ a:hover { color: var(--link-hover); }
 
 /* ---------- área de trabalho ---------- */
 main.wrap { padding-block: 28px 56px; display: grid; gap: 28px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.indice { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--border); }
+.indice .wrap { display: flex; gap: 4px 18px; overflow-x: auto; padding-block: 10px; font-size: 13px; white-space: nowrap; }
+.indice a { color: var(--ink-2); }
+.indice a:hover { color: var(--link); }
+.bloco { font-size: 12px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--link); padding-top: 10px; border-top: 2px solid var(--border); margin-bottom: -10px; scroll-margin-top: 56px; }
+section { scroll-margin-top: 56px; }
 section { min-width: 0; }
 .sec-h { display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .sec-h h2 { font-size: 17px; font-weight: 600; }
@@ -206,6 +213,7 @@ section { min-width: 0; }
 .tbl tr.crit { background-image: var(--row-crit); }
 .tit { max-width: 46ch; }
 .tit small { display: block; color: var(--ink-2); font-size: 12px; margin-top: 2px; }
+.um { display: block; max-width: 60ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fase { display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border); white-space: nowrap; color: var(--ink-1); }
 .lin { cursor: pointer; }
 .lin:hover > td { background-color: var(--surface-alt); }
@@ -357,6 +365,8 @@ details.hist li + li { margin-top: 8px; }
   </div>
 </header>
 
+<nav class="indice" id="indice" aria-label="Seções" hidden><div class="wrap"><a href="#esta-semana">Esta semana</a><a href="#andamento">Como a esteira anda</a><a href="#cadastro">Cadastro</a><a href="#todas">Todas as demandas</a><a href="#metodo">Como os números são calculados</a></div></nav>
+
 <main class="wrap">
   <section id="vazio" class="card vazio">
     <svg viewBox="0 0 400 400" aria-hidden="true"><g stroke-width="82" stroke-linecap="round" fill="none"><line x1="240" y1="50" x2="140" y2="345" stroke="#86C9BC"/><line x1="70" y1="130" x2="335" y2="265" stroke="#C4E5DE"/></g></svg>
@@ -374,12 +384,8 @@ details.hist li + li { margin-top: 8px; }
   <div id="app" hidden style="display:contents">
     <section id="secDelta"></section>
     <section id="secKpi"></section>
-    <section id="secPrevisao"></section>
+    <h2 class="bloco" id="esta-semana" tabindex="-1">Esta semana</h2>
     <section id="secAcao"></section>
-    <div class="grid2">
-      <section id="secPrazo"></section>
-      <section id="secLead"></section>
-    </div>
     <div class="grid2">
       <section id="secProximas"></section>
       <section id="secAgenda"></section>
@@ -388,12 +394,19 @@ details.hist li + li { margin-top: 8px; }
       <section id="secCarga"></section>
       <section id="secPessoas"></section>
     </div>
+    <section id="secPrevisao"></section>
+    <h2 class="bloco" id="andamento" tabindex="-1">Como a esteira anda</h2>
+    <div class="grid2">
+      <section id="secPrazo"></section>
+      <section id="secLead"></section>
+    </div>
     <div class="grid2">
       <section id="secPi"></section>
       <section id="secCab"></section>
     </div>
     <section id="secArea"></section>
     <section id="secQualidade"></section>
+    <h2 class="bloco" id="cadastro" tabindex="-1">Cadastro</h2>
     <section id="secDado"></section>
     <section id="secTodas"></section>
     <section id="secMetodo"></section>
@@ -1097,15 +1110,15 @@ details.hist li + li { margin-top: 8px; }
   };
   const COR_ESTAGIO = { iniciacao: 'var(--e1)', planejamento: 'var(--e2)', execucao: 'var(--e3)', encerramento: 'var(--e4)', concluido: 'var(--e5)', fora: 'var(--e-fora)' };
   const COR_ST = { atrasada: 'var(--critical-bg)', vence: 'var(--at-risk)', noprazo: 'var(--on-track)', semdata: 'var(--no-data)', semcab: 'var(--no-data)', aguardando: 'var(--border-input)', bloqueada: 'var(--delayed)' };
-  const barra = (segs, rotulo, cls = '') => `<div class="bar ${cls}" role="img" aria-label="${esc(rotulo)}">${segs.filter((s) => s.n > 0)
+  const barra = (segs, rotulo, cls = '') => `<div class="bar ${cls}" role="img" aria-label="${esc(`${rotulo}: ${segs.filter((s) => s.n > 0).map((s) => s.tip).join(', ')}`)}">${segs.filter((s) => s.n > 0)
     .map((s) => `<span style="flex:${s.n} 1 0;background:${s.cor}" data-tip="${esc(s.tip)}"></span>`).join('')}</div>`;
-  const progresso = (a, b, cor = 'var(--grad-bar)') => `<div class="bar" role="img" aria-label="${pct(a, b)}%"><span style="width:${b ? (100 * a) / b : 0}%;background:${cor}"></span></div>`;
+  const progresso = (a, b, cor = 'var(--grad-bar)', oculta) => `<div class="bar" ${oculta ? 'aria-hidden="true"' : `role="img" aria-label="${pct(a, b)}%"`}><span style="width:${b ? (100 * a) / b : 0}%;background:${cor}"></span></div>`;
   const codBtn = (d) => `<button type="button" class="cod-btn" data-abrir="${esc(d.chave)}">${esc(d.id)}</button>`;
   const secH = (titulo, meta, dir = '') => `<div class="sec-h"><h2>${titulo}</h2>${meta ? `<span class="meta">${meta}</span>` : ''}${dir ? `<span class="dir">${dir}</span>` : ''}</div>`;
 
   const estado = {
     db: null, podeGravar: null, exportacoes: [], cache: new Map(), selecionada: null, modelo: null,
-    filtro: { st: 'abertas', pi: '', area: '', etapa: '', q: '' }, abertas: new Set(), pessoas: 'respAcelen', carga: 'abap', referencias: [],
+    filtro: { st: 'abertas', pi: '', area: '', etapa: '', q: '', lacuna: '' }, todasAberta: false, abertas: new Set(), pessoas: 'respAcelen', carga: 'abap', referencias: [],
   };
 
   // ---------- desenho ----------
@@ -1115,6 +1128,7 @@ details.hist li + li { margin-top: 8px; }
     $('#vazio').hidden = true;
     $('#app').hidden = false;
     $('#app').style.display = 'contents';
+    $('#indice').hidden = false;
     renderBanda(m);
     renderDelta(m);
     renderKpi(m);
@@ -1238,15 +1252,20 @@ details.hist li + li { margin-top: 8px; }
     $('#secKpi').innerHTML = secH('A esteira', `${pl(m.ds.length, 'demanda', 'demandas')} · ${num(m.pis.length)} PIs · ${hh(m.horas.total)} estimadas`) + `<div class="kpis">${cards.join('')}</div>`;
   }
 
-  function linhaDemanda(d, extra = '') {
-    return `<tr class="${d.st === 'atrasada' ? 'crit' : ''}"><td>${codBtn(d)}</td><td class="tit">${esc(d.titulo)}<small>${esc([d.area, d.piPlan].filter(Boolean).join(' · '))}${extra}</small></td><td><span class="fase">${esc(d.fase)}</span></td><td>${stTag(d.st)}<br><span class="nota">${esc(prazoTxt(d))}</span></td><td>${esc(d.respAcelen || '—')}</td><td>${esc((d.funcional || []).join(', ') || '—')}</td></tr>`;
+  // Uma linha por demanda: o que é igual no grupo inteiro (a fase) sobe para o cabeçalho do grupo.
+  function linhaDemanda(d, mostraFase) {
+    const meta = [d.area, d.piPlan, mostraFase && d.fase, d.statusReport && `status: ${d.statusReport}`].filter(Boolean).join(' · ');
+    return `<tr class="${d.motivo === 'atrasada' ? 'crit' : ''}"><td>${codBtn(d)}</td><td class="tit"><span class="um" title="${esc(d.titulo)}">${esc(d.titulo)}</span><small class="um" title="${esc(meta)}">${esc(meta)}</small></td><td class="nw">${(() => { const [g, , cls] = d.motivo === 'atualizar' ? ['◐', '', 'at-risk'] : ST[d.st]; return `<span class="st st-${cls}"><i aria-hidden="true">${g}</i> ${esc(prazoTxt(d) || ST[d.st][1])}</span>`; })()}</td><td class="nw">${esc(d.respAcelen || '—')}</td><td><span class="um" style="max-width:24ch">${esc((d.funcional || []).join(', ') || '—')}</span></td></tr>`;
   }
 
   function renderAcao(m) {
     const total = m.acao.reduce((s, g) => s + g.itens.length, 0);
     $('#secAcao').innerHTML = secH('Pedem ação', total ? `${pl(total, 'demanda', 'demandas')}, agrupadas pelo que precisa acontecer` : 'nada pendente') + (total ? `<div class="card"><div class="tbl-wrap"><table class="tbl">
-      <thead><tr><th>Código</th><th>Demanda</th><th>Fase na lista</th><th>Prazo</th><th>Resp. Acelen</th><th>Funcional</th></tr></thead><tbody>${m.acao.map((g) =>
-        `<tr class="grp"><td colspan="6"><b>${esc(g.titulo)}</b><span>${pl(g.itens.length, 'demanda', 'demandas')} · ${esc(g.nota)}${g.semStatus ? ` · ${g.semStatus === g.itens.length ? 'nenhuma com status report' : `${num(g.semStatus)} sem status report`}` : ''}</span></td></tr>${g.itens.map((d) => linhaDemanda(d, d.statusReport ? ` · status: ${esc(d.statusReport.slice(0, 120))}${d.statusReport.length > 120 ? '…' : ''}` : '')).join('')}`).join('')}</tbody></table></div></div>`
+      <thead><tr><th>Código</th><th>Demanda</th><th>Prazo</th><th>Resp. Acelen</th><th>Funcional</th></tr></thead><tbody>${m.acao.map((g) => {
+        const fases = new Set(g.itens.map((d) => d.fase));
+        const fase = fases.size === 1 ? [...fases][0] : null;
+        return `<tr class="grp"><td colspan="5"><b>${esc(g.titulo)}</b><span>${pl(g.itens.length, 'demanda', 'demandas')}${fase ? ` em ${esc(fase)}` : ''} · ${esc(g.nota)}${g.semStatus ? ` · ${g.semStatus === g.itens.length ? 'nenhuma com status report' : `${num(g.semStatus)} sem status report`}` : ''}</span></td></tr>${g.itens.map((d) => linhaDemanda(d, !fase)).join('')}`;
+      }).join('')}</tbody></table></div></div>`
       : '<div class="card aviso good"><h3>Nenhuma demanda bloqueada, atrasada ou vencendo nesta semana</h3></div>');
   }
 
@@ -1282,7 +1301,7 @@ details.hist li + li { margin-top: 8px; }
       const carry = Object.entries(p.carry);
       return `<div class="linha"><span class="nome"><b>${esc(p.pi)}</b> <span class="muted">· ${num(p.n)}</span></span>${barra(E.ESTAGIOS.map((s) => ({ n: p.est[s.k] || 0, cor: COR_ESTAGIO[s.k], tip: `${p.pi} · ${s.nome}: ${p.est[s.k] || 0}` })), `${p.pi} por estágio`, 'lg')}
       <span class="val">${num(p.concl)} ${p.concl === 1 ? 'concluída' : 'concluídas'}</span>
-      <span class="sub">${p.concl ? `${num(p.proprio)} no próprio PI${carry.length ? ` · carry-over: ${carry.map(([pi, n]) => `${num(n)} no ${esc(pi)}`).join(', ')}` : ''} · ` : ''}${hh(p.horas)}${p.semEst ? ` (${num(p.semEst)} sem estimativa)` : ''}${p.ciclo != null ? ` · ciclo planejado ${num(p.ciclo)} d` : ''}${p.atrasadas ? ` · <span class="st-critical">▲ ${num(p.atrasadas)} ${p.atrasadas === 1 ? 'atrasada' : 'atrasadas'}</span>` : ''}</span></div>`;
+      <span class="sub">${E.ESTAGIOS.filter((s) => p.est[s.k]).map((s) => `${esc(s.nome)} ${num(p.est[s.k])}`).join(' · ')} — ${p.concl ? `${num(p.proprio)} no próprio PI${carry.length ? ` · carry-over: ${carry.map(([pi, n]) => `${num(n)} no ${esc(pi)}`).join(', ')}` : ''} · ` : ''}${hh(p.horas)}${p.semEst ? ` (${num(p.semEst)} sem estimativa)` : ''}${p.ciclo != null ? ` · ciclo planejado ${num(p.ciclo)} d` : ''}${p.atrasadas ? ` · <span class="st-critical">▲ ${num(p.atrasadas)} ${p.atrasadas === 1 ? 'atrasada' : 'atrasadas'}</span>` : ''}</span></div>`;
     }).join('')}</div><p class="nota nota-pe">Ciclo planejado é a mediana de Data de Início → Data de Entrega Pronto. Concluída no próprio PI: PI Entregue igual ao PI Planning.</p></div>`;
   }
 
@@ -1292,7 +1311,7 @@ details.hist li + li { margin-top: 8px; }
     const total = m.meses.reduce((s, x) => s + x.passou + x.agendada, 0);
     const ag = m.meses.reduce((s, x) => s + x.agendada, 0);
     $('#secCab').innerHTML = secH('CABs por mês', `${pl(total, 'data CAB registrada', 'datas CAB registradas')} · ${num(ag)} ${ag === 1 ? 'agendada' : 'agendadas'} a partir do corte`) + `<div class="card">${m.meses.length ? `<div class="card-h"><div class="leg"><span><i class="sw" style="background:var(--e4)"></i>data já passou</span><span><i class="sw" style="background:var(--e2)"></i>agendada</span></div></div>
-      <div class="colunas" role="img" aria-label="CABs por mês">${m.meses.map((x) => `<div class="col" data-tip="${esc(`${MESES[+x.mes.slice(5) - 1]} ${x.mes.slice(0, 4)}: ${x.passou} passou · ${x.agendada} agendada`)}"><span class="q">${x.passou + x.agendada || ''}</span><div class="pilha">${x.agendada ? `<span style="height:${(120 * x.agendada) / mx}px;background:var(--e2)"></span>` : ''}${x.passou ? `<span style="height:${(120 * x.passou) / mx}px;background:var(--e4)"></span>` : ''}</div></div>`).join('')}</div>
+      <div class="colunas" role="img" aria-label="${esc(`CABs por mês: ${m.meses.map((x) => `${MESES[+x.mes.slice(5) - 1]} ${x.passou + x.agendada}${x.agendada ? ` (${x.agendada} agendada${x.agendada === 1 ? '' : 's'})` : ''}`).join(', ')}`)}">${m.meses.map((x) => `<div class="col" data-tip="${esc(`${MESES[+x.mes.slice(5) - 1]} ${x.mes.slice(0, 4)}: ${x.passou} passou · ${x.agendada} agendada`)}"><span class="q">${x.passou + x.agendada || ''}</span><div class="pilha">${x.agendada ? `<span style="height:${(120 * x.agendada) / mx}px;background:var(--e2)"></span>` : ''}${x.passou ? `<span style="height:${(120 * x.passou) / mx}px;background:var(--e4)"></span>` : ''}</div></div>`).join('')}</div>
       <div class="col-rot">${m.meses.map((x) => `<span class="${x.mes === mesCorte ? 'hoje' : ''}">${MESES[+x.mes.slice(5) - 1]}${x.mes.slice(5) === '01' ? ` ${x.mes.slice(2, 4)}` : ''}</span>`).join('')}</div>` : '<div class="card-p nota">Nenhuma Data CAB registrada.</div>'}
       <p class="nota nota-pe">Conta a Data CAB da lista. A lista não tem data real de CAB: uma data que já passou não confirma que a subida aconteceu.</p></div>`;
   }
@@ -1389,7 +1408,7 @@ details.hist li + li { margin-top: 8px; }
     const mx = Math.max(1, ...r.lista.map((p) => p.abertas));
     const top = r.lista.slice(0, 8);
     $('#secPessoas').innerHTML = secH('Pessoas', 'quem tem demanda aberta') + `<div class="card"><div class="filtros" role="group" aria-label="Lado">${Object.entries(OP).map(([k, v]) => `<button type="button" class="chip" data-pessoas="${k}" aria-pressed="${estado.pessoas === k}">${v}</button>`).join('')}</div>
-      <div class="linhas">${top.length ? top.map((p) => `<div class="linha"><span class="nome" title="${esc(p.nome)}">${esc(p.nome)}</span>${progresso(p.abertas, mx, 'var(--e3)')}<span class="val"><b>${num(p.abertas)}</b> <span class="muted">${p.abertas === 1 ? 'aberta' : 'abertas'}</span></span>
+      <div class="linhas">${top.length ? top.map((p) => `<div class="linha"><span class="nome" title="${esc(p.nome)}">${esc(p.nome)}</span>${progresso(p.abertas, mx, 'var(--e3)', true)}<span class="val"><b>${num(p.abertas)}</b> <span class="muted">${p.abertas === 1 ? 'aberta' : 'abertas'}</span></span>
       <span class="sub">${num(p.total)} no total · ${pct(p.total, r.comAtrib)}% das ${num(r.comAtrib)} ${COM[estado.pessoas]}${p.atrasadas ? ` · <span class="st-critical">▲ ${num(p.atrasadas)} ${p.atrasadas === 1 ? 'atrasada' : 'atrasadas'}</span>` : ''}</span></div>`).join('') : '<div class="card-p nota">Ninguém atribuído.</div>'}</div>
       <p class="nota nota-pe">${r.lista.length > top.length ? `Mais ${pl(r.lista.length - top.length, 'pessoa', 'pessoas')} com menos demandas abertas. ` : ''}Demanda com mais de uma pessoa conta para cada uma.</p></div>`;
   }
@@ -1408,9 +1427,10 @@ details.hist li + li { margin-top: 8px; }
   }
 
   function renderDado(m) {
-    const ids = (xs) => xs.slice(0, 14).map((d) => codBtn(d)).join(' ') + (xs.length > 14 ? ` <span class="muted">+${xs.length - 14}</span>` : '');
-    $('#secDado').innerHTML = secH('Qualidade do cadastro', m.cadastro.length ? `${pl(m.cadastro.length, 'campo impede', 'campos impedem')} uma leitura completa` : 'nenhuma lacuna nos campos conferidos') + (m.cadastro.length ? `<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Campo</th><th class="r">Falta</th><th>Consequência</th><th>Demandas</th></tr></thead><tbody>${m.cadastro.map((x) =>
-      `<tr><td>${x.derivado ? esc(x.campo) : `<span class="cod" style="color:var(--ink-1)">${esc(x.campo)}</span>`}</td><td class="r nw">${x.rotulo ? esc(x.rotulo) : `<b>${num(x.itens.length)}</b>${x.base != null ? ` <span class="muted">de ${num(x.base)} ${esc(x.baseNome)}</span>` : ''}`}</td><td class="nota">${esc(x.efeito)}</td><td>${x.semIds ? `<span class="muted">${x.itens.length === x.base ? 'todas' : 'quase todas'}</span>` : ids(x.itens)}</td></tr>`).join('')}</tbody></table></div>
+    const donos = (xs) => Object.entries(xs.reduce((o, d) => { const k = d.respAcelen || 'sem responsável'; o[k] = (o[k] || 0) + 1; return o; }, {})).sort((a, b) => b[1] - a[1]);
+    const ids = (x) => { const ds = donos(x.itens); return `<button type="button" class="chip" data-lacuna="${esc(x.campo)}">Ver ${x.itens.length === 1 ? 'a demanda' : `as ${num(x.itens.length)}`}</button>${ds.length ? `<small class="um" style="margin-top:6px">${ds.slice(0, 3).map(([k, n]) => `${esc(k)} ${num(n)}`).join(' · ')}${ds.length > 3 ? ` · +${ds.length - 3}` : ''}</small>` : ''}`; };
+    $('#secDado').innerHTML = secH('Qualidade do cadastro', m.cadastro.length ? `${pl(m.cadastro.length, 'campo impede', 'campos impedem')} uma leitura completa` : 'nenhuma lacuna nos campos conferidos') + (m.cadastro.length ? `<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Campo</th><th class="r">Falta</th><th>Consequência</th><th>Demandas e de quem cobrar (Resp. Acelen)</th></tr></thead><tbody>${m.cadastro.map((x) =>
+      `<tr><td>${x.derivado ? esc(x.campo) : `<span class="cod" style="color:var(--ink-1)">${esc(x.campo)}</span>`}</td><td class="r nw">${x.rotulo ? esc(x.rotulo) : `<b>${num(x.itens.length)}</b>${x.base != null ? ` <span class="muted">de ${num(x.base)} ${esc(x.baseNome)}</span>` : ''}`}</td><td class="nota">${esc(x.efeito)}</td><td>${ids(x)}</td></tr>`).join('')}</tbody></table></div>
       <p class="nota nota-pe">Onde o número não existe, este report mostra o nome do campo em vez de estimar.</p></div>` : '');
   }
 
@@ -1424,13 +1444,14 @@ details.hist li + li { margin-top: 8px; }
     document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.etapa === f.etapa)));
     const pis = m.pis.map((p) => p.pi);
     const areas = m.areas.map((a) => a.area);
-    $('#secTodas').innerHTML = secH('Todas as demandas', 'clique numa linha para ver datas, pessoas e histórico') + `<div class="card"><div class="filtros" role="group" aria-label="Filtros">
+    $('#secTodas').innerHTML = `<div class="sec-h"><h2 id="todas" tabindex="-1">Todas as demandas</h2><span class="meta">clique numa linha para ver datas, pessoas e histórico</span></div><div class="card"><div class="filtros" role="group" aria-label="Filtros">
+      ${f.lacuna ? `<button type="button" class="chip" data-lacuna-x aria-pressed="true" title="Tirar o filtro">Sem ${esc(f.lacuna)} ✕</button>` : ''}
       ${FILTROS_ST.map(([k, v]) => { const n = m.ds.filter((d) => passaSt(d, k)).length; return n || k === f.st ? `<button type="button" class="chip" data-st="${k}" aria-pressed="${f.st === k}">${v} ${num(n)}</button>` : ''; }).join('')}
       <select id="fPi" aria-label="PI"><option value="">Todos os PIs</option>${pis.map((p) => `<option ${f.pi === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
       <select id="fArea" aria-label="Área"><option value="">Todas as áreas</option>${areas.map((a) => `<option ${f.area === a ? 'selected' : ''}>${esc(a)}</option>`).join('')}</select>
       <select id="fEtapa" aria-label="Etapa do fluxo"><option value="">Todas as etapas</option>${E.ETAPAS.map((e) => `<option value="${e.k}" ${f.etapa === e.k ? 'selected' : ''}>${esc(e.nome)}</option>`).join('')}</select>
       <input id="fBusca" type="search" placeholder="Código, título ou pessoa" value="${esc(f.q)}" aria-label="Buscar">
-      <span class="conta" id="fConta"></span></div><div class="tbl-wrap" id="tabTodas"></div></div>`;
+      <span class="conta" id="fConta" aria-live="polite"></span></div><div class="tbl-wrap" id="tabTodas"></div></div>`;
     renderLinhas();
   }
 
@@ -1438,10 +1459,15 @@ details.hist li + li { margin-top: 8px; }
     const m = estado.modelo;
     const f = estado.filtro;
     const q = f.q.trim().toLowerCase();
-    const xs = m.ds.filter((d) => passaSt(d, f.st) && (!f.pi || (d.piPlan || 'Sem PI') === f.pi) && (!f.area || (d.area || 'Sem área') === f.area) && (!f.etapa || d.etapa === f.etapa)
+    const lacuna = f.lacuna ? new Set((m.cadastro.find((x) => x.campo === f.lacuna) || { itens: [] }).itens.map((d) => d.chave)) : null;
+    const xs = m.ds.filter((d) => (!lacuna || lacuna.has(d.chave)) && passaSt(d, f.st) && (!f.pi || (d.piPlan || 'Sem PI') === f.pi) && (!f.area || (d.area || 'Sem área') === f.area) && (!f.etapa || d.etapa === f.etapa)
       && (!q || [d.id, d.titulo, d.respAcelen, ...(d.funcional || []), ...(d.abap || [])].some((v) => String(v ?? '').toLowerCase().includes(q))))
       .sort((a, b) => ORDEM_ST.indexOf(a.st) - ORDEM_ST.indexOf(b.st) || (a.dias ?? 0) - (b.dias ?? 0) || String(b.r_concluido || b.cab || '').localeCompare(String(a.r_concluido || a.cab || '')) || String(b.id).localeCompare(String(a.id), 'pt', { numeric: true }));
-    $('#fConta').textContent = `Mostrando ${num(xs.length)} de ${num(m.ds.length)}`;
+    $('#fConta').textContent = estado.todasAberta ? `Mostrando ${num(xs.length)} de ${num(m.ds.length)}` : '';
+    if (!estado.todasAberta) {
+      $('#tabTodas').innerHTML = `<div class="card-p"><button type="button" class="btn btn-out" data-abrir-todas>Mostrar ${xs.length === 1 ? 'a demanda' : `as ${num(xs.length)} demandas`} do filtro</button></div>`;
+      return;
+    }
     $('#tabTodas').innerHTML = xs.length ? `<table class="tbl"><thead><tr><th>Código</th><th>Demanda</th><th>PI</th><th>Fase na lista</th><th>Situação</th><th class="r">Horas</th><th>Resp. Acelen</th></tr></thead><tbody>${xs.map((d) => {
       const ab = estado.abertas.has(d.chave);
       return `<tr class="lin${d.st === 'atrasada' ? ' crit' : ''}" data-k="${esc(d.chave)}" aria-expanded="${ab}"><td style="white-space:nowrap"><button type="button" class="exp" aria-label="Detalhes de ${esc(d.id)}" aria-expanded="${ab}">▶</button><span class="cod">${esc(d.id)}</span></td><td class="tit">${esc(d.titulo)}<small>${esc(d.area || '')}</small></td><td style="white-space:nowrap">${esc(d.piPlan || '—')}</td><td><span class="fase">${esc(d.fase || '—')}</span></td><td>${stTag(d.st)}<br><span class="nota">${esc(prazoTxt(d))}</span></td><td class="r">${d.horas != null ? num(d.horas) : '<span class="muted">—</span>'}</td><td>${esc(d.respAcelen || '—')}</td></tr>${ab ? `<tr class="det"><td colspan="7">${detalhe(d)}</td></tr>` : ''}`;
@@ -1472,7 +1498,7 @@ details.hist li + li { margin-top: 8px; }
   function renderMetodo(m) {
     const s = m.snap;
     const quando = new Date(s.exportadoEm);
-    $('#secMetodo').innerHTML = secH('Como os números são calculados') + `<div class="card"><div class="metodo">
+    $('#secMetodo').innerHTML = '<div class="sec-h"><h2 id="metodo" tabindex="-1">Como os números são calculados</h2></div>' + `<div class="card"><div class="metodo">
       <p><b>Versão do report.</b> ${esc($('#versao').textContent)}.</p>
       <p><b>Fonte.</b> ${esc(s.arquivo || 'exportação')} · ${pl(s.total, 'linha', 'linhas')} · exportada em ${dt(s.corte, true)}, ${quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: E.FUSO })} (Brasília)${s.autor ? ` por ${esc(s.autor)}` : ''}. ${s.colunasAusentes.length ? `Colunas ausentes no arquivo: ${s.colunasAusentes.map(esc).join(', ')}.` : 'Todas as colunas esperadas estão no arquivo.'}</p>
       <p><b>Data de corte.</b> A data em que a planilha foi criada pela exportação (${dt(s.corte, true)}, fuso de Brasília), não a data de hoje nem a de uma edição posterior no Excel${s.editadaEm ? ` (esta foi salva de novo em ${dt(s.editadaEm.slice(0, 10), true)})` : ''}. Todo “passou da data” e “vence em 7 dias” é contado a partir dela.</p>
@@ -1644,37 +1670,54 @@ details.hist li + li { margin-top: 8px; }
   }
 
   function abrirDemanda(chave) {
-    estado.filtro = { st: 'todas', pi: '', area: '', etapa: '', q: '' };
+    estado.filtro = { st: 'todas', pi: '', area: '', etapa: '', q: '', lacuna: '' };
+    estado.todasAberta = true;
     estado.abertas.add(chave);
     renderTodas(estado.modelo);
     const tr = document.querySelector(`tr.lin[data-k="${CSS.escape(chave)}"]`);
     if (tr) { tr.scrollIntoView({ behavior: 'smooth', block: 'center' }); tr.querySelector('.exp').focus({ preventScroll: true }); }
   }
-  function irParaTabela() { renderTodas(estado.modelo); $('#secTodas').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  function irParaTabela() {
+    estado.todasAberta = true;
+    renderTodas(estado.modelo);
+    $('#secTodas').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('#todas').focus({ preventScroll: true });
+  }
 
   // ---------- eventos ----------
   $('#btnCarregar').addEventListener('click', () => $('#arquivo').click());
   $('#arquivo').addEventListener('change', (e) => { lerArquivo(e.target.files[0]); e.target.value = ''; });
   $('#selExp').addEventListener('change', (e) => { estado.selecionada = e.target.value; mostrarSelecionada(); });
-  $('#btnPrincipal').addEventListener('click', (e) => { estado.filtro = { st: e.currentTarget.dataset.st, pi: '', area: '', etapa: '', q: '' }; irParaTabela(); });
+  $('#btnPrincipal').addEventListener('click', (e) => { estado.filtro = { st: e.currentTarget.dataset.st, pi: '', area: '', etapa: '', q: '', lacuna: '' }; irParaTabela(); });
 
   document.addEventListener('click', (e) => {
     const t = e.target;
     const irSt = t.closest('[data-ir-st]');
-    if (irSt) { estado.filtro = { st: irSt.dataset.irSt, pi: '', area: '', etapa: '', q: '' }; document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', 'false')); irParaTabela(); return; }
+    if (irSt) { estado.filtro = { st: irSt.dataset.irSt, pi: '', area: '', etapa: '', q: '', lacuna: '' }; document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', 'false')); irParaTabela(); return; }
     const abrir = t.closest('[data-abrir]');
     if (abrir) { abrirDemanda(abrir.dataset.abrir); return; }
     const cap = t.closest('[data-etapa]');
     if (cap) {
       const k = cap.dataset.etapa;
-      estado.filtro = { st: 'todas', pi: '', area: '', etapa: estado.filtro.etapa === k ? '' : k, q: '' };
+      estado.filtro = { st: 'todas', pi: '', area: '', etapa: estado.filtro.etapa === k ? '' : k, q: '', lacuna: '' };
       if (!estado.filtro.etapa) estado.filtro.st = 'abertas';
       document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.etapa === estado.filtro.etapa)));
       irParaTabela();
       return;
     }
     const chipSt = t.closest('[data-st]');
-    if (chipSt && chipSt.classList.contains('chip')) { estado.filtro.st = chipSt.dataset.st; renderTodas(estado.modelo); return; }
+    if (chipSt && chipSt.classList.contains('chip')) {
+      // só as linhas mudam: o chip continua no lugar e com o foco
+      estado.filtro.st = chipSt.dataset.st;
+      estado.todasAberta = true;
+      document.querySelectorAll('#secTodas [data-st]').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.st === estado.filtro.st)));
+      renderLinhas();
+      return;
+    }
+    if (t.closest('[data-abrir-todas]')) { estado.todasAberta = true; renderLinhas(); const l = $('#tabTodas tr.lin .exp'); if (l) l.focus(); return; }
+    const lac = t.closest('[data-lacuna]');
+    if (lac) { estado.filtro = { st: 'todas', pi: '', area: '', etapa: '', q: '', lacuna: lac.dataset.lacuna }; irParaTabela(); return; }
+    if (t.closest('[data-lacuna-x]')) { estado.filtro.lacuna = ''; estado.filtro.st = 'abertas'; renderTodas(estado.modelo); $('#todas').focus(); return; }
     const chipC = t.closest('[data-carga]');
     if (chipC) { estado.carga = chipC.dataset.carga; renderCarga(estado.modelo); $(`#secCarga [data-carga="${estado.carga}"]`).focus(); return; }
     const chipP = t.closest('[data-pessoas]');
@@ -1696,9 +1739,10 @@ details.hist li + li { margin-top: 8px; }
       estado.filtro.etapa = e.target.value;
       document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.etapa === estado.filtro.etapa)));
     } else return;
+    estado.todasAberta = true;
     renderLinhas();
   });
-  document.addEventListener('input', (e) => { if (e.target.id === 'fBusca') { estado.filtro.q = e.target.value; renderLinhas(); } });
+  document.addEventListener('input', (e) => { if (e.target.id === 'fBusca') { estado.filtro.q = e.target.value; estado.todasAberta = true; renderLinhas(); } });
 
   // soltar o arquivo em qualquer lugar da página
   let arrastando = 0;
