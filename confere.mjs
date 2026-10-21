@@ -1,11 +1,11 @@
 // Confere o núcleo do report (o <script id="nucleo"> do index.html) contra uma exportação real.
 //
-//   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx>             imprime os números e confere as partições
-//   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle  estraga uma demanda e PRECISA reprovar
-//   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-subfase  põe uma demanda na subfase errada e PRECISA reprovar
-//   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-calculo  estraga uma conta de carga e PRECISA reprovar
-//   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-leitura  estraga a cobertura do prazo e o pedido da semana e PRECISA reprovar
-//   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-riscos  estraga as próximas 6 semanas, um risco e a regra do PI 4 e PRECISA reprovar
+//   node confere.mjs <exportacao.xlsx>             imprime os números e confere as partições
+//   node confere.mjs <exportacao.xlsx> --controle  estraga uma demanda e PRECISA reprovar
+//   node confere.mjs <exportacao.xlsx> --controle-subfase  põe uma demanda na subfase errada e PRECISA reprovar
+//   node confere.mjs <exportacao.xlsx> --controle-calculo  estraga uma conta de carga e PRECISA reprovar
+//   node confere.mjs <exportacao.xlsx> --controle-leitura  estraga a cobertura do prazo e o pedido da semana e PRECISA reprovar
+//   node confere.mjs <exportacao.xlsx> --controle-riscos  estraga as próximas 6 semanas, um risco e a regra do PI 4 e PRECISA reprovar
 //   ... --ponto=2026-09-28:95   medição anterior de prontas ou concluídas, para imprimir o ritmo e a previsão
 //
 // Roda o mesmo código que a página roda; nada de reimplementar a regra aqui. O que se confere

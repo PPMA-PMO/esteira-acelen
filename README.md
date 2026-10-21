@@ -1,8 +1,9 @@
 # Esteira Acelen — report
 
 Report da esteira de melhorias SAP da Acelen, calculado da exportação da lista
-**Cadastro de Melhorias** (SharePoint). Uma página só (`index.html`), desenho PPMA v2
-(`design/tokens-v2.css`), sem dependência e sem dado da Acelen dentro do repositório.
+**Cadastro de Melhorias** (SharePoint). Uma página só (`index.html`), desenho PPMA v2 (os tokens de
+`design/tokens-v2.css` do PPMA vêm copiados dentro da página), sem dependência e sem dado da Acelen
+dentro do repositório.
 
 Publicado em https://claude.ai/artifact/Qkiyaov1fzmR1eHNp2KqTm — ali as exportações carregadas
 ficam guardadas e a seção de mudanças compara cada semana com a anterior.
@@ -15,10 +16,11 @@ ficam guardadas e a seção de mudanças compara cada semana com a anterior.
 
 Aberto direto do disco, o `index.html` lê o arquivo no navegador e não guarda nada.
 
-## O que está separado do app
+## Origem
 
-Fica fora do build do Vite e do lint (só entram `index.html` da raiz e `src/`). Nada aqui
-lê ou escreve no Supabase do PPMA.
+Até 21/10/2026 o report vivia em `relatorios/esteira-acelen/` do repositório PPMA-PMO/ppmaoficial (o app
+PPMA no Base44) e saiu de lá para não se misturar com o app; o histórico veio junto. Nada aqui lê ou
+escreve no Supabase do PPMA.
 
 ## Filtro
 
@@ -105,12 +107,12 @@ código, num filtro de situação ou em "Ver as N" abre Todas as demandas.
 ## Conferir
 
 ```bash
-node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx>              # imprime os números, confere as partições
-node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle          # fase desconhecida: precisa reprovar
-node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-subfase  # demanda na subfase errada: precisa reprovar
-node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-calculo  # conta de carga errada: precisa reprovar
-node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-leitura  # cobertura e pedido errados: precisa reprovar
-node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-riscos   # próximas, risco e regra do PI 4 errados: precisa reprovar
+node confere.mjs <exportacao.xlsx>              # imprime os números, confere as partições
+node confere.mjs <exportacao.xlsx> --controle          # fase desconhecida: precisa reprovar
+node confere.mjs <exportacao.xlsx> --controle-subfase  # demanda na subfase errada: precisa reprovar
+node confere.mjs <exportacao.xlsx> --controle-calculo  # conta de carga errada: precisa reprovar
+node confere.mjs <exportacao.xlsx> --controle-leitura  # cobertura e pedido errados: precisa reprovar
+node confere.mjs <exportacao.xlsx> --controle-riscos   # próximas, risco e regra do PI 4 errados: precisa reprovar
 ```
 
 O verificador roda o mesmo `<script id="nucleo">` da página e confere a subfase de cada demanda
