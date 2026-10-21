@@ -39,6 +39,8 @@ const falhas = [];
 const confere = (ok, txt) => { if (!ok) falhas.push(txt); };
 const soma = (o) => Object.values(o).reduce((s, n) => s + n, 0);
 
+confere(!snap.colunasAusentes.length, `colunas ausentes na exportação: ${snap.colunasAusentes.join(', ')}`);
+confere(!Object.keys(snap.naoLidos).length, `valores não lidos como data ou número: ${Object.entries(snap.naoLidos).map(([k, v]) => `${k} ${v.length}`).join(', ')}`);
 confere(soma(m.st) === m.ds.length, `situações somam ${soma(m.st)}, demandas ${m.ds.length}`);
 confere(m.etapas.reduce((s, e) => s + e.n, 0) + m.concl.length + soma(m.fora) === m.ds.length, 'subfases + concluídas + fora do fluxo não fecham com o total');
 confere(m.etapas.length === 8 && new Set(m.etapas.map((e) => e.grupo)).size === 4, 'o fluxo macro precisa ter 4 fases e 8 subfases');

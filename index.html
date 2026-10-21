@@ -108,6 +108,10 @@ a:hover { color: var(--link-hover); }
 .hero-acts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
 .msg { margin-top: 12px; font-size: 13px; color: var(--leaf); }
 .msg.erro { color: #FFB4B4; }
+.alertas { display: grid; gap: 4px; margin-top: 10px; font-size: 13px; color: #FFD08A; max-width: 80ch; }
+.confirma { margin-top: 14px; padding: 14px 16px; border-radius: 10px; border: 1px solid rgba(255, 208, 138, .45); background: rgba(14, 17, 19, .5); color: var(--on-dark-1); font-size: 13px; max-width: 80ch; }
+.confirma ul { margin: 6px 0 0; padding-left: 18px; color: #FFD08A; }
+.confirma li + li { margin-top: 3px; }
 
 .btn { border-radius: 999px; padding: 9px 20px; border: 1px solid transparent; cursor: pointer; font-size: 13.5px; line-height: 1.2; white-space: nowrap; }
 .btn:disabled { opacity: .6; cursor: progress; }
@@ -337,6 +341,7 @@ details.hist li + li { margin-top: 8px; }
     </div>
     <div class="hero">
       <p class="kicker" id="kicker">Esteira de melhorias SAP · Acelen</p>
+      <p class="alertas" id="alertas" role="alert" hidden></p>
       <h1 id="titulo">Report da esteira</h1>
       <p class="sub" id="subtitulo">Carregue a exportação da lista Cadastro de Melhorias para ver o andamento.</p>
       <div class="hero-acts">
@@ -345,6 +350,7 @@ details.hist li + li { margin-top: 8px; }
         <input type="file" id="arquivo" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
       </div>
       <p class="msg" id="msg" role="status" hidden></p>
+      <div class="confirma" id="confirma" hidden></div>
     </div>
     <nav class="trilho" id="trilho" aria-label="Fluxo macro da esteira" hidden></nav>
     <p class="fora" id="fora" hidden></p>
@@ -532,16 +538,23 @@ details.hist li + li { margin-top: 8px; }
   const FUSO = 'America/Sao_Paulo';
   const ymd = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: FUSO, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 
+  // Data só entra se for data de verdade, entre 2000 e 2100: "10/16/2026" (mês/dia) não vira 16 de
+  // outubro calado; vira valor não lido e aparece no aviso e na Qualidade do cadastro.
   function paraData(v) {
     const s = String(v).trim();
+    let y, mm, dd;
     if (/^\d+(\.\d+)?$/.test(s)) {
       const n = +s;
-      return n > 0 && n < 2958466 ? new Date(Math.round((n - 25569) * 864e5)).toISOString().slice(0, 10) : null;
+      if (n < 36526 || n > 73051) return null;
+      return new Date(Math.round((n - 25569) * 864e5)).toISOString().slice(0, 10);
     }
-    let m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
-    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-    m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s);
-    return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : null;
+    let r = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:$|[T ])/.exec(s);
+    if (r) [y, mm, dd] = [+r[1], +r[2], +r[3]];
+    else if ((r = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})(?:$|\s)/.exec(s))) { [dd, mm, y] = [+r[1], +r[2], +r[3]]; if (y < 100) y += 2000; }
+    else return null;
+    const t = new Date(Date.UTC(y, mm - 1, dd));
+    if (y < 2000 || y > 2100 || t.getUTCMonth() !== mm - 1 || t.getUTCDate() !== dd) return null;
+    return t.toISOString().slice(0, 10);
   }
   function converter(v, tipo) {
     if (v === null || v === undefined) return null;
@@ -573,20 +586,33 @@ details.hist li + li { margin-top: 8px; }
     if (!folha) throw new Error('Não achei as colunas NumeroDemanda, Titolo e Fase. O arquivo precisa ser a exportação da lista Cadastro de Melhorias.');
     const tipo = Object.fromEntries(CAMPOS.map(([k, t]) => [k, t]));
     const demandas = [];
+    const nomeCol = Object.fromEntries(CAMPOS.map(([k, , n]) => [k, n]));
+    const naoLidos = {};
     for (const linha of folha.slice(1)) {
       const d = {};
-      mapa.forEach((k, i) => { if (!k || d[k] != null) return; const v = converter(linha[i], tipo[k]); if (v !== null) d[k] = v; });
+      const falhas = [];
+      mapa.forEach((k, i) => {
+        if (!k || d[k] != null) return;
+        const v = converter(linha[i], tipo[k]);
+        if (v !== null) d[k] = v;
+        else if (['data', 'num'].includes(tipo[k]) && linha[i] != null && String(linha[i]).trim() !== '') falhas.push(k);
+      });
       if (d.id == null && !d.titulo) continue;
+      falhas.forEach((k) => { (naoLidos[nomeCol[k]] ||= []).push(String(d.id ?? d.titulo)); });
       demandas.push(d);
     }
     if (!demandas.length) throw new Error('A planilha tem o cabeçalho da lista, mas nenhuma demanda.');
-    let quando = new Date(lido.props.modificado || lido.props.criado || dataArquivo || Date.now());
+    // Corte = quando a planilha foi criada pela exportação. A data de modificação muda se alguém abrir e
+    // salvar no Excel depois, e aí o report mediria tudo contra o dia errado.
+    let quando = new Date(lido.props.criado || lido.props.modificado || dataArquivo || Date.now());
     if (Number.isNaN(+quando)) quando = new Date();
+    const modificada = lido.props.modificado ? new Date(lido.props.modificado) : null;
     const presentes = new Set(mapa.filter(Boolean));
     const corte = ymd(quando);
     return {
       id: corte, corte, exportadoEm: quando.toISOString(), autor: lido.props.autor || null, arquivo: arquivo || null,
-      total: demandas.length, colunasAusentes: CAMPOS.filter(([k]) => !presentes.has(k)).map(([, , n]) => n), demandas,
+      editadaEm: modificada && modificada - quando > 3600e3 ? modificada.toISOString() : null,
+      total: demandas.length, colunasAusentes: CAMPOS.filter(([k]) => !presentes.has(k)).map(([, , n]) => n), naoLidos, demandas,
     };
   }
 
@@ -599,33 +625,30 @@ details.hist li + li { margin-top: 8px; }
     return a.length % 2 ? a[h] : (a[h - 1] + a[h]) / 2;
   };
   const porNome = (a, b) => String(a).localeCompare(String(b), 'pt', { numeric: true });
-  const aberta = (d) => d.st !== 'concluida' && d.st !== 'cancelada';
+  const aberta = (d) => d.st !== 'concluida' && d.st !== 'cancelada' && d.st !== 'desconhecida';
   const contar = (xs, f) => xs.reduce((m, x) => { const k = f(x); if (k != null) m[k] = (m[k] || 0) + 1; return m; }, {});
 
-  function faseTipo(fase) {
-    const f = norm(fase);
-    if (f.startsWith('conclu')) return 'concluido';
-    if (f.startsWith('cancel')) return 'cancelada';
-    if (f.startsWith('bloque')) return 'bloqueado';
-    if (f.startsWith('backlog')) return 'backlog';
-    if (f.includes('refin')) return 'refinamento';
-    if (f.includes('constru')) return 'construcao';
-    if (f.includes('homolog')) return 'homologacao';
-    if (f.includes('pronto') || f.includes('encerr')) return 'pronto';
-    return 'outra';
-  }
+  // As fases da lista, pelo nome exato (sem acento e sem caixa). Fase fora desta tabela não é
+  // adivinhada por pedaço do nome: "Encerrado" não é Pronto, é fase que o report não conhece.
+  const FASES_LISTA = {
+    backlog: 'backlog', 'em refinamento': 'refinamento', refinamento: 'refinamento', 'em construcao': 'construcao', construcao: 'construcao',
+    'em homologacao': 'homologacao', homologacao: 'homologacao', 'pronto em encerramento': 'pronto', 'pronto encerramento': 'pronto', pronto: 'pronto',
+    'em encerramento': 'pronto', concluido: 'concluido', concluida: 'concluido', bloqueado: 'bloqueado', bloqueada: 'bloqueado', cancelada: 'cancelada', cancelado: 'cancelada',
+  };
+  const faseTipo = (fase) => FASES_LISTA[norm(fase)] || 'outra';
   // Prazo de uma demanda aberta = a data planejada que ENCERRA a fase em que ela está.
   // Pronto/Em Encerramento só sai da fase com a CAB, então o prazo dela é a Data CAB.
   const PRAZO = {
     backlog: ['p_inicio', 'Início'], refinamento: ['p_refinamento', 'Fim do refinamento'],
     construcao: ['p_construcao', 'Fim da construção'], homologacao: ['p_homologacao', 'Fim da homologação'],
-    pronto: ['cab', 'CAB'], outra: ['p_pronto', 'Pronto'],
+    pronto: ['cab', 'CAB'],
   };
   function situacao(d, c) {
     const t = faseTipo(d.fase);
     if (t === 'concluido') return { st: 'concluida' };
     if (t === 'cancelada') return { st: 'cancelada' };
     if (t === 'bloqueado') return { st: 'bloqueada' };
+    if (t === 'outra') return { st: 'desconhecida' };
     const [campo, marco] = PRAZO[t];
     if (!d[campo]) return { st: t === 'pronto' ? 'semcab' : t === 'backlog' ? 'aguardando' : 'semdata', marco };
     const n = dia(d[campo]) - c;
@@ -665,7 +688,8 @@ details.hist li + li { margin-top: 8px; }
     if (t === 'backlog') return d.p_inicio ? 'preparacao' : 'preprojeto';
     return { refinamento: 'planejamento', construcao: 'construcao', homologacao: 'homologacao' }[t] || null;
   }
-  // O número da demanda repete na lista (a CR herda o número da original); aí o título separa.
+  // Chave de cada linha na tela. O número da demanda repete na lista (a CR herda o número da
+  // original); aí o título separa.
   function chaves(demandas) {
     const conta = contar(demandas, (d) => String(d.id));
     return demandas.map((d) => (conta[String(d.id)] > 1 ? `${d.id}~${norm(d.titulo)}` : String(d.id)));
@@ -676,19 +700,38 @@ details.hist li + li { margin-top: 8px; }
     ['p_homologacao', 'Fim da homologação'], ['p_pronto', 'Pronto'], ['cab', 'CAB'],
   ];
 
+  // Pareia as linhas das duas exportações pelo número. Só quando o número se repete o título desempata;
+  // se sobrar uma linha de cada lado com o mesmo número, elas formam par (título editado, CR nova).
+  function parear(antes, agora) {
+    const grupos = new Map();
+    const pega = (id) => { if (!grupos.has(id)) grupos.set(id, { a: [], d: [] }); return grupos.get(id); };
+    antes.forEach((x) => pega(String(x.id)).a.push(x));
+    agora.forEach((x) => pega(String(x.id)).d.push(x));
+    const pares = [];
+    for (const { a, d } of grupos.values()) {
+      const livresA = [...a];
+      const livresD = [];
+      d.forEach((x) => { const i = livresA.findIndex((y) => norm(y.titulo) === norm(x.titulo)); if (i >= 0) pares.push([livresA.splice(i, 1)[0], x]); else livresD.push(x); });
+      while (livresA.length && livresD.length && livresA.length === livresD.length) pares.push([livresA.shift(), livresD.shift()]);
+      livresA.forEach((x) => pares.push([x, null]));
+      livresD.forEach((x) => pares.push([null, x]));
+    }
+    return pares;
+  }
+
   function comparar(ds, ant) {
     const ca = dia(ant.corte);
-    const ka = chaves(ant.demandas);
-    const antes = new Map(ant.demandas.map((d, i) => [ka[i], { ...d, ...situacao(d, ca), etapa: etapaDe(d, ca) }]));
+    const antes = ant.demandas.map((d) => ({ ...d, ...situacao(d, ca), etapa: etapaDe(d, ca) }));
     const nomeEtapa = (k) => (ETAPAS.find((e) => e.k === k) || {}).nome;
     const itens = [];
-    for (const d of ds) {
-      const a = antes.get(d.chave);
+    for (const [a, d] of parear(antes, ds)) {
+      if (!d) { itens.push({ tipo: 'saiu', d: a }); continue; }
       if (!a) { itens.push({ tipo: 'nova', d }); continue; }
       if (a.fase !== d.fase) itens.push({ tipo: d.st === 'concluida' ? 'concluida' : 'fase', d, de: a.fase, para: d.fase });
       else if (a.etapa && d.etapa && a.etapa !== d.etapa) itens.push({ tipo: 'subfase', d, de: nomeEtapa(a.etapa), para: nomeEtapa(d.etapa) });
       for (const [k, nome] of MARCOS) {
         if (a[k] && d[k] && a[k] !== d[k]) itens.push({ tipo: 'replan', d, nome, de: a[k], para: d[k], dias: dia(d[k]) - dia(a[k]) });
+        else if (a[k] && !d[k]) itens.push({ tipo: 'apagada', d, nome, de: a[k] });
       }
       if ((a.piPlan || '') !== (d.piPlan || '')) itens.push({ tipo: 'pi', d, de: a.piPlan || 'sem PI', para: d.piPlan || 'sem PI' });
       for (const [k, nome] of [['respAcelen', 'Resp. Acelen'], ['funcional', 'Funcional'], ['abap', 'ABAP']]) {
@@ -696,10 +739,10 @@ details.hist li + li { margin-top: 8px; }
         if (de !== para) itens.push({ tipo: 'pessoa', d, nome, de: de || '—', para: para || '—' });
       }
       if (d.st === 'atrasada' && a.st !== 'atrasada') itens.push({ tipo: 'atrasou', d });
+      // saiu do atraso sem andar: mesma fase, e a data que vencia sumiu
+      if (a.st === 'atrasada' && a.fase === d.fase && (d.st === 'semdata' || d.st === 'semcab' || d.st === 'aguardando')) itens.push({ tipo: 'saiuAtraso', d, nome: a.marco, de: a.prazo });
     }
-    const agora = new Set(ds.map((d) => d.chave));
-    for (const [k, a] of antes) if (!agora.has(k)) itens.push({ tipo: 'saiu', d: a });
-    return { de: ant.corte, itens, conta: contar(itens, (x) => x.tipo), demandas: new Set(itens.map((x) => x.d.chave)).size };
+    return { de: ant.corte, itens, conta: contar(itens, (x) => x.tipo), demandas: new Set(itens.map((x) => x.d)).size };
   }
 
   // Dias úteis: segunda a sexta, sem os feriados nacionais (fixos, Carnaval, Sexta-feira Santa e
@@ -871,11 +914,27 @@ details.hist li + li { margin-top: 8px; }
     // Fechamento do PI mais recente. Ritmo = quantas demandas a mais ficaram prontas ou concluídas por
     // dia útil, desde a medição mais antiga feita entre 7 e 28 dias antes do corte. Há dois ritmos: o da
     // esteira toda e o do próprio PI, porque a esteira pode estar fechando outro PI (como o PI 3 em out/26).
-    const piAtual = pis.filter((x) => x.pi !== 'Sem PI').at(-1) || null;
+    // PI em execução = o que tem mais demandas ativas antes de pronto (no empate, o mais novo). Um PI
+    // novo com uma demanda no Backlog não tira da tela o PI que está sendo construído.
+    const ativasDe = (pi) => ds.filter((d) => (d.piPlan || 'Sem PI') === pi && aberta(d) && d.tipo !== 'pronto' && d.st !== 'bloqueada').length;
+    const candidatos = pis.filter((x) => x.pi !== 'Sem PI').map((x) => ({ pi: x, n: ativasDe(x.pi) }));
+    const piAtual = candidatos.filter((x) => x.n).reduce((a, b) => (!a || b.n >= a.n ? b : a), null)?.pi || candidatos.at(-1)?.pi || null;
+    const outrosPIs = pis.filter((x) => x.pi !== 'Sem PI' && x !== piAtual).map((x) => {
+      const doPI = ds.filter((d) => (d.piPlan || 'Sem PI') === x.pi);
+      const ab = doPI.filter(aberta);
+      if (!ab.length) return null;
+      const ultimo = doPI.map((d) => d.p_pronto).filter(Boolean).sort().at(-1) || null;
+      return {
+        pi: x.pi, abertas: ab.length, horas: somaH(ab), antesDePronto: ab.filter((d) => d.tipo !== 'pronto' && d.st !== 'bloqueada').length,
+        bloqueadas: ab.filter((d) => d.st === 'bloqueada').length, semCab: ab.filter((d) => d.etapa === 'prepfinal').length,
+        cabFutura: ab.filter((d) => d.etapa === 'implantacao').length, cabPassou: ab.filter((d) => d.etapa === 'encerramento').length,
+        ultimo, duPassou: ultimo && dia(ultimo) <= c ? diasUteis(dia(ultimo), c) : null,
+      };
+    }).filter(Boolean);
     let previsao = null;
     if (piAtual) {
       const doPI = ds.filter((d) => (d.piPlan || 'Sem PI') === piAtual.pi);
-      const faltam = doPI.filter((d) => d.st !== 'concluida' && d.st !== 'cancelada' && d.tipo !== 'pronto');
+      const faltam = doPI.filter((d) => aberta(d) && d.tipo !== 'pronto');
       const ultimo = doPI.map((d) => d.p_pronto).filter(Boolean).sort().at(-1) || null;
       const passou = !!ultimo && dia(ultimo) <= c;
       const duAte = ultimo && !passou ? Math.max(1, diasUteis(c, dia(ultimo))) : null;
@@ -976,13 +1035,19 @@ details.hist li + li { margin-top: 8px; }
       porPI: nomesPI.map((pi) => ({ pi, ...tempo(entregas.filter((x) => (x.d.piPlan || 'Sem PI') === pi)) })).filter((x) => x.n),
       inicioCopiado: entregas.filter((x) => x.d.p_inicio && x.d.r_inicio === x.d.p_inicio).length, invertidas,
     };
+    const naoLidos = Object.entries(snap.naoLidos || {});
+    if (naoLidos.length) {
+      const ids = new Set(naoLidos.flatMap(([, xs]) => xs));
+      cadastro.unshift({ campo: 'Valor que não foi lido', derivado: true, itens: ds.filter((d) => ids.has(String(d.id ?? d.titulo))), base: null,
+        rotulo: naoLidos.map(([col, xs]) => `${xs.length} em ${col}`).join(' · '), efeito: 'célula preenchida que não é data ou número válido; o report trata como vazia' });
+    }
     if (invertidas.length) cadastro.push({ campo: 'Início real depois da subida', derivado: true, itens: invertidas, base: null, efeito: 'duração negativa; fica fora do tempo de entrega' });
 
     return {
       snap, corte: snap.corte, ds, abertas, concl, prontas, st, etapas, fora, acao, pis, aderencia, meses, proximas, areas,
       pessoas, replan, qualidade, cadastro, repetidos, previsao, cargas, uat, lead, motivos: contar(ds.filter((d) => d.motivo), (d) => d.motivo),
       horas: { total: somaH(ds), concl: somaH(concl), abertas: somaH(abertas), prontas: somaH(prontas), abertasSemEst: sem(abertas, 'horas').length },
-      piAtual,
+      piAtual, outrosPIs, desconhecidas: contar(ds.filter((d) => d.st === 'desconhecida'), (d) => d.fase || '(sem fase)'),
       delta: ant ? comparar(ds, ant) : null,
     };
   }
@@ -1013,13 +1078,13 @@ details.hist li + li { margin-top: 8px; }
 
   const ST = {
     atrasada: ['▲', 'Atrasada', 'critical'], vence: ['◐', 'Vence em 7 dias', 'at-risk'], noprazo: ['●', 'No prazo', 'on-track'],
-    semdata: ['—', 'Sem data', 'no-data'], semcab: ['—', 'Sem CAB', 'no-data'], aguardando: ['○', 'Aguardando planejamento', 'no-data'], bloqueada: ['❙❙', 'Bloqueada', 'delayed'],
+    semdata: ['—', 'Sem data', 'no-data'], semcab: ['—', 'Sem CAB', 'no-data'], aguardando: ['○', 'Aguardando planejamento', 'no-data'], bloqueada: ['❙❙', 'Bloqueada', 'delayed'], desconhecida: ['?', 'Fase não reconhecida', 'no-data'],
     concluida: ['▣', 'Concluída', 'on-hold'], cancelada: ['✕', 'Cancelada', 'on-hold'],
   };
   const PLURAL = {
     atrasada: ['atrasada', 'atrasadas'], vence: ['vence em 7 dias', 'vencem em 7 dias'], noprazo: ['no prazo', 'no prazo'],
     semdata: ['sem data', 'sem data'], semcab: ['sem CAB', 'sem CAB'], aguardando: ['aguardando planejamento', 'aguardando planejamento'],
-    bloqueada: ['bloqueada', 'bloqueadas'],
+    bloqueada: ['bloqueada', 'bloqueadas'], desconhecida: ['em fase não reconhecida', 'em fase não reconhecida'],
   };
   const stTag = (st, extra) => `<span class="st st-${ST[st][2]}"><i aria-hidden="true">${ST[st][0]}</i> ${ST[st][1]}${extra ? ` <em>· ${esc(extra)}</em>` : ''}</span>`;
   const prazoTxt = (d) => {
@@ -1072,6 +1137,13 @@ details.hist li + li { margin-top: 8px; }
 
   function renderBanda(m) {
     const s = m.snap;
+    const alertas = [];
+    if (s.colunasAusentes.length) alertas.push(`A exportação veio sem ${s.colunasAusentes.length === 1 ? 'a coluna' : 'as colunas'} ${s.colunasAusentes.join(', ')}: os números que dependem ${s.colunasAusentes.length === 1 ? 'dela' : 'delas'} estão incompletos.`);
+    Object.entries(m.desconhecidas).forEach(([f, n]) => alertas.push(`${pl(n, 'demanda está', 'demandas estão')} na fase “${f}”, que o report não conhece: ${n === 1 ? 'fica' : 'ficam'} fora dos números.`));
+    Object.entries(s.naoLidos || {}).forEach(([col, xs]) => alertas.push(`${pl(xs.length, 'valor', 'valores')} da coluna ${col} não ${xs.length === 1 ? 'foi lido' : 'foram lidos'} como data ou número.`));
+    if (s.editadaEm) alertas.push(`A planilha foi salva de novo em ${dt(s.editadaEm.slice(0, 10), true)}, depois da exportação: o corte usa a data em que ela foi criada.`);
+    $('#alertas').innerHTML = alertas.map((a) => `<span>▲ ${esc(a)}</span>`).join('');
+    $('#alertas').hidden = !alertas.length;
     $('#kicker').textContent = `Esteira de melhorias SAP · Acelen · exportação de ${dt(s.corte, true)}`;
     const atr = m.st.atrasada || 0;
     const enc = m.etapas.find((e) => e.k === 'encerramento').n;
@@ -1128,13 +1200,15 @@ details.hist li + li { margin-top: 8px; }
       return;
     }
     const D = m.delta;
-    const ROT = { concluida: ['concluída', 'concluídas'], fase: ['mudou de fase', 'mudaram de fase'], subfase: ['mudou de subfase', 'mudaram de subfase'], pi: ['mudou de PI', 'mudaram de PI'], pessoa: ['troca de responsável', 'trocas de responsável'], replan: ['data replanejada', 'datas replanejadas'], atrasou: ['passou a atrasar', 'passaram a atrasar'], nova: ['nova na lista', 'novas na lista'], saiu: ['saiu da lista', 'saíram da lista'] };
-    const ordem = ['concluida', 'fase', 'subfase', 'pi', 'replan', 'pessoa', 'atrasou', 'nova', 'saiu'];
+    const ROT = { concluida: ['concluída', 'concluídas'], fase: ['mudou de fase', 'mudaram de fase'], subfase: ['mudou de subfase', 'mudaram de subfase'], pi: ['mudou de PI', 'mudaram de PI'], pessoa: ['troca de responsável', 'trocas de responsável'], replan: ['data replanejada', 'datas replanejadas'], atrasou: ['passou a atrasar', 'passaram a atrasar'], nova: ['nova na lista', 'novas na lista'], saiu: ['saiu da lista', 'saíram da lista'], apagada: ['data apagada', 'datas apagadas'], saiuAtraso: ['saiu do atraso sem andar', 'saíram do atraso sem andar'] };
+    const ordem = ['concluida', 'fase', 'subfase', 'pi', 'replan', 'apagada', 'saiuAtraso', 'pessoa', 'atrasou', 'nova', 'saiu'];
     const txt = (x) => ({
       nova: `entrou na lista · ${esc(x.d.fase)}`, saiu: 'saiu da lista', concluida: `${esc(x.de)} → Concluído`, fase: `${esc(x.de)} → ${esc(x.para)}`, subfase: `${esc(x.de)} → ${esc(x.para)} <em class="muted">(mesma fase na lista)</em>`,
       replan: `${esc(x.nome)}: ${dt(x.de)} → ${dt(x.para)} <em class="muted">(${x.dias > 0 ? '+' : ''}${x.dias} d)</em>`,
       atrasou: `passou da data · ${esc(x.d.marco)} ${dt(x.d.prazo)}`,
       pi: `${esc(x.de)} → ${esc(x.para)}`, pessoa: `${esc(x.nome)}: ${esc(x.de)} → ${esc(x.para)}`,
+      apagada: `${esc(x.nome)}: ${dt(x.de)} → <span class="st-critical">apagada</span>`,
+      saiuAtraso: `<span class="st-critical">▲ ${esc(x.nome)} de ${dt(x.de)} vencia e a data foi apagada, sem a fase andar</span>`,
     }[x.tipo]);
     const itens = [...D.itens].sort((a, b) => ordem.indexOf(a.tipo) - ordem.indexOf(b.tipo));
     el.innerHTML = secH(`Desde a exportação de ${dt(D.de, true)}`, pl(D.demandas, 'demanda mudou', 'demandas mudaram')) +
@@ -1144,7 +1218,7 @@ details.hist li + li { margin-top: 8px; }
   }
 
   function renderKpi(m) {
-    const validas = m.ds.length - (m.st.cancelada || 0);
+    const validas = m.ds.length - (m.st.cancelada || 0) - (m.st.desconhecida || 0);
     const conc = m.concl.length;
     const pr = m.etapas.filter((e) => ['prepfinal', 'implantacao', 'encerramento'].includes(e.k));
     const [prep, impl, enc] = pr.map((e) => e.n);
@@ -1158,7 +1232,7 @@ details.hist li + li { margin-top: 8px; }
         <span class="meta">${[enc && `<span class="st-critical">▲ ${num(enc)} com a CAB vencida</span>`, impl && `<span class="st-at-risk">◐ ${num(impl)} com CAB agendada</span>`, prep && `— ${num(prep)} sem CAB`].filter(Boolean).join(' · ') || 'nenhuma pronta parada'}</span></div>`,
       `<div class="card kpi" style="--strip:linear-gradient(90deg,#5C65C4,#D42A2A)"><span class="rot">Abertas fora do prazo</span><div class="val"><b>${num(m.st.atrasada || 0)}</b><span>de ${num(ab)} abertas</span></div>${barra(ordemSt.map((k) => ({ n: m.st[k] || 0, cor: COR_ST[k], tip: `${m.st[k] || 0} · ${ST[k][1]}` })), 'Abertas por situação de prazo')}
         <span class="meta">${ordemSt.filter((k) => m.st[k]).map((k) => `<span class="st-${ST[k][2]}">${ST[k][0]} ${num(m.st[k])} ${PLURAL[k][m.st[k] === 1 ? 0 : 1]}</span>`).join(' · ')}</span></div>`,
-      p ? `<div class="card kpi" style="--strip:linear-gradient(90deg,#AED47E,#4DB5A3)"><span class="rot">${esc(p.pi)} · o PI mais recente</span><div class="val"><b>${num(p.n)}</b><span>${p.n === 1 ? 'demanda' : 'demandas'} · ${num(p.concl)} ${p.concl === 1 ? 'concluída' : 'concluídas'}</span></div>${barra(E.ESTAGIOS.map((s) => ({ n: p.est[s.k] || 0, cor: COR_ESTAGIO[s.k], tip: `${p.est[s.k] || 0} · ${s.nome}` })), `${p.pi} por estágio`)}
+      p ? `<div class="card kpi" style="--strip:linear-gradient(90deg,#AED47E,#4DB5A3)"><span class="rot">${esc(p.pi)} · em execução</span><div class="val"><b>${num(p.n)}</b><span>${p.n === 1 ? 'demanda' : 'demandas'} · ${num(p.concl)} ${p.concl === 1 ? 'concluída' : 'concluídas'}</span></div>${barra(E.ESTAGIOS.map((s) => ({ n: p.est[s.k] || 0, cor: COR_ESTAGIO[s.k], tip: `${p.est[s.k] || 0} · ${s.nome}` })), `${p.pi} por estágio`)}
         <span class="meta">${p.atrasadas ? `<span class="st-critical">▲ ${num(p.atrasadas)} ${p.atrasadas === 1 ? 'atrasada' : 'atrasadas'}</span> · ` : ''}${num(p.semdata)} sem data na fase · ${num(p.semEst)} sem estimativa de horas</span></div>` : '',
     ];
     $('#secKpi').innerHTML = secH('A esteira', `${pl(m.ds.length, 'demanda', 'demandas')} · ${num(m.pis.length)} PIs · ${hh(m.horas.total)} estimadas`) + `<div class="kpis">${cards.join('')}</div>`;
@@ -1263,7 +1337,13 @@ details.hist li + li { margin-top: 8px; }
       <div><b>${p.necessario != null ? dec(p.necessario) : '—'}</b><span>${necessario}</span></div>
       <div><b>${p.ritmo != null ? dec(p.ritmo) : '—'}</b><span>${b ? `demanda por dia útil ${ritmoTxt}` : ritmoTxt}</span></div>
       <div><b>${p.prevista ? dt(p.prevista) : '—'}</b><span>${prevTxt}</span></div>
-    </div><p class="nota nota-pe">Ritmo = aumento de demandas prontas ou concluídas dividido pelos dias úteis entre a medição mais antiga feita de 1 a 4 semanas antes e o corte. Previsão = faltam ÷ ritmo, em dias úteis a partir do corte (segunda a sexta, sem feriados nacionais). Bloqueadas contam como faltando.</p></div>`;
+    </div>${m.outrosPIs.length ? `<div class="linhas" style="border-top:1px solid var(--border-soft)">${m.outrosPIs.map((o) => `<div class="linha"><span class="nome"><b>${esc(o.pi)}</b> <span class="muted">· ${pl(o.abertas, 'aberta', 'abertas')}</span></span><span class="sub" style="grid-column:2 / -1">${[
+      o.antesDePronto && `${num(o.antesDePronto)} antes de pronto`,
+      (o.semCab || o.cabPassou || o.cabFutura) && `falta CAB: ${[o.semCab && `${num(o.semCab)} sem CAB`, o.cabPassou && `<span class="st-critical">${num(o.cabPassou)} com a CAB vencida</span>`, o.cabFutura && `${num(o.cabFutura)} com CAB agendada`].filter(Boolean).join(', ')}`,
+      o.bloqueadas && `<span class="st-delayed">❙❙ ${pl(o.bloqueadas, 'bloqueada', 'bloqueadas')}</span>`,
+      `${hh(o.horas)}`,
+      o.ultimo && (o.duPassou != null ? `último pronto planejado ${dt(o.ultimo)}, <span class="st-critical">passou há ${pl(o.duPassou, 'dia útil', 'dias úteis')}</span>` : `último pronto planejado ${dt(o.ultimo)}`),
+    ].filter(Boolean).join(' · ')}</span></div>`).join('')}</div>` : ''}<p class="nota nota-pe">${esc(p.pi)} é o PI em execução: o que tem mais demandas ativas antes de pronto.${m.outrosPIs.length ? ' Os outros PIs com demanda aberta aparecem embaixo, com o que falta para fechar.' : ''} Ritmo = aumento de demandas prontas ou concluídas dividido pelos dias úteis entre a medição mais antiga feita de 1 a 4 semanas antes e o corte. Previsão = faltam ÷ ritmo, em dias úteis a partir do corte (segunda a sexta, sem feriados nacionais). Bloqueadas contam como faltando.</p></div>`;
   }
 
   function renderLead(m) {
@@ -1335,9 +1415,9 @@ details.hist li + li { margin-top: 8px; }
   }
 
   // ---------- todas as demandas ----------
-  const ORDEM_ST = ['atrasada', 'bloqueada', 'vence', 'semcab', 'semdata', 'aguardando', 'noprazo', 'concluida', 'cancelada'];
-  const FILTROS_ST = [['abertas', 'Abertas'], ['atrasada', 'Atrasadas'], ['vence', 'Vencem em 7 dias'], ['noprazo', 'No prazo'], ['semdata', 'Sem data'], ['semcab', 'Sem CAB'], ['aguardando', 'Aguardando planejamento'], ['bloqueada', 'Bloqueadas'], ['concluida', 'Concluídas'], ['cancelada', 'Canceladas'], ['todas', 'Todas']];
-  const passaSt = (d, k) => (k === 'todas' ? true : k === 'abertas' ? d.st !== 'concluida' && d.st !== 'cancelada' : d.st === k);
+  const ORDEM_ST = ['atrasada', 'bloqueada', 'vence', 'semcab', 'semdata', 'aguardando', 'noprazo', 'desconhecida', 'concluida', 'cancelada'];
+  const FILTROS_ST = [['abertas', 'Abertas'], ['atrasada', 'Atrasadas'], ['vence', 'Vencem em 7 dias'], ['noprazo', 'No prazo'], ['semdata', 'Sem data'], ['semcab', 'Sem CAB'], ['aguardando', 'Aguardando planejamento'], ['bloqueada', 'Bloqueadas'], ['concluida', 'Concluídas'], ['cancelada', 'Canceladas'], ['desconhecida', 'Fase não reconhecida'], ['todas', 'Todas']];
+  const passaSt = (d, k) => (k === 'todas' ? true : k === 'abertas' ? !['concluida', 'cancelada', 'desconhecida'].includes(d.st) : d.st === k);
 
   function renderTodas(m) {
     const f = estado.filtro;
@@ -1395,7 +1475,7 @@ details.hist li + li { margin-top: 8px; }
     $('#secMetodo').innerHTML = secH('Como os números são calculados') + `<div class="card"><div class="metodo">
       <p><b>Versão do report.</b> ${esc($('#versao').textContent)}.</p>
       <p><b>Fonte.</b> ${esc(s.arquivo || 'exportação')} · ${pl(s.total, 'linha', 'linhas')} · exportada em ${dt(s.corte, true)}, ${quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: E.FUSO })} (Brasília)${s.autor ? ` por ${esc(s.autor)}` : ''}. ${s.colunasAusentes.length ? `Colunas ausentes no arquivo: ${s.colunasAusentes.map(esc).join(', ')}.` : 'Todas as colunas esperadas estão no arquivo.'}</p>
-      <p><b>Data de corte.</b> A data em que a planilha foi exportada (${dt(s.corte, true)}), não a data de hoje. Todo “passou da data” e “vence em 7 dias” é contado a partir dela.</p>
+      <p><b>Data de corte.</b> A data em que a planilha foi criada pela exportação (${dt(s.corte, true)}, fuso de Brasília), não a data de hoje nem a de uma edição posterior no Excel${s.editadaEm ? ` (esta foi salva de novo em ${dt(s.editadaEm.slice(0, 10), true)})` : ''}. Todo “passou da data” e “vence em 7 dias” é contado a partir dela.</p>
       <p><b>Prazo da demanda aberta.</b> A data planejada que encerra a fase atual: Backlog → Data de Início; Em Refinamento → Data de Entrega Refinamento; Em Construção → Data de Entrega Construção; Em Homologação → Data de Entrega Homologação; Pronto/Em Encerramento → Data CAB. Sem essa data, a demanda fica “sem data” e não entra na conta de atraso.</p>
       <p><b>Fluxo Macro dos Projetos.</b> ${[...new Set(E.ETAPAS.map((e) => e.grupo))].map((g) => `${esc(g)}: ${E.ETAPAS.filter((e) => e.grupo === g).map((e) => `${esc(e.nome)} ← ${esc(e.fonte)}`).join('; ')}`).join('. ')}. Backlog se divide pela Data de Início (sem data ou com data); Pronto/Em Encerramento, pela Data CAB (sem data, futura ou já passada). Backlog sem Data de Início fica “aguardando planejamento”: em Pré Projeto a falta da data é esperada, então não conta como lacuna. Concluídas saíram do fluxo; bloqueadas, canceladas e fases que o report não reconhece ficam fora dele (e o confere.mjs reprova a fase desconhecida).</p>
       <p><b>Prazo planejado × real.</b> Real ≤ planejado nas datas de Refinamento, Construção, Homologação e Pronto. Só entram demandas com as duas datas preenchidas e com a data real até o corte: data real no futuro é plano copiado no campo real.</p>
@@ -1422,6 +1502,15 @@ details.hist li + li { margin-top: 8px; }
     snap.carregadoEm = new Date().toISOString();
     estado.cache.set(snap.id, snap);
     if (estado.db && estado.podeGravar !== false) {
+      const avisos = await avisosAntesDeGuardar(snap);
+      if (avisos.length && !(await confirmar(avisos))) {
+        local(snap);
+        mostrarMsg(`Exportação de ${dt(snap.corte, true)} aberta só nesta tela, sem guardar.`);
+        estado.selecionada = snap.id;
+        atualizarSeletor();
+        await mostrarSelecionada();
+        return;
+      }
       const b = $('#btnCarregar');
       b.disabled = true; b.textContent = 'Salvando…';
       try {
@@ -1441,6 +1530,40 @@ details.hist li + li { margin-top: 8px; }
     atualizarSeletor();
     await mostrarSelecionada();
   }
+
+  const hora = (iso) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: E.FUSO });
+  // O que pode estar errado numa exportação, comparada com a última guardada antes dela.
+  async function avisosAntesDeGuardar(snap) {
+    const avisos = [];
+    const mesmo = estado.exportacoes.find((x) => x.id === snap.id && x.exportadoEm && x.exportadoEm !== snap.exportadoEm);
+    if (mesmo) avisos.push(`Já existe uma exportação de ${dt(snap.corte, true)} guardada (criada às ${hora(mesmo.exportadoEm)}). Esta é das ${hora(snap.exportadoEm)} e vai substituí-la para todos.`);
+    if (snap.editadaEm) avisos.push(`A planilha foi salva de novo em ${dt(snap.editadaEm.slice(0, 10), true)}, depois da exportação. O corte usa a criação (${dt(snap.corte, true)}).`);
+    if (snap.colunasAusentes.length) avisos.push(`Faltam colunas: ${snap.colunasAusentes.join(', ')}.`);
+    Object.entries(snap.naoLidos || {}).forEach(([col, xs]) => avisos.push(`${pl(xs.length, 'valor', 'valores')} da coluna ${col} não ${xs.length === 1 ? 'virou' : 'viraram'} data ou número.`));
+    const desc = contar(snap.demandas.filter((d) => E.faseTipo(d.fase) === 'outra'), (d) => d.fase || '(sem fase)');
+    Object.entries(desc).forEach(([f, n]) => avisos.push(`${pl(n, 'demanda está', 'demandas estão')} na fase “${f}”, que o report não conhece.`));
+    const ant = estado.exportacoes.filter((x) => x.corte < snap.corte).sort((a, b) => b.corte.localeCompare(a.corte))[0];
+    if (ant) {
+      if (snap.total < ant.total * 0.9) avisos.push(`Esta exportação tem ${num(snap.total)} demandas; a de ${dt(ant.corte, true)} tinha ${num(ant.total)}.`);
+      try {
+        const velho = await snapDe(ant.id);
+        const antes = contar(velho ? velho.demandas : [], (d) => d.fase || '(sem fase)');
+        const agora = contar(snap.demandas, (d) => d.fase || '(sem fase)');
+        Object.entries(antes).filter(([f, n]) => n >= 5 && !agora[f]).forEach(([f, n]) => avisos.push(`A fase “${f}” tinha ${num(n)} demandas em ${dt(ant.corte, true)} e agora não tem nenhuma: o nome da fase pode ter mudado na lista.`));
+      } catch { /* sem a anterior, fica só o que deu para conferir */ }
+    }
+    return avisos;
+  }
+  function confirmar(avisos) {
+    return new Promise((ok) => {
+      const el = $('#confirma');
+      el.innerHTML = `<b>Antes de guardar esta exportação para todos:</b><ul>${avisos.map((a) => `<li>${esc(a)}</li>`).join('')}</ul><div class="hero-acts"><button type="button" class="btn btn-lime" data-conf="1">Guardar mesmo assim</button><button type="button" class="btn btn-ghost" data-conf="0">Só ver, sem guardar</button></div>`;
+      el.hidden = false;
+      el.querySelector('[data-conf="0"]').focus();
+      el.onclick = (e) => { const b = e.target.closest('[data-conf]'); if (!b) return; el.hidden = true; el.innerHTML = ''; ok(b.dataset.conf === '1'); };
+    });
+  }
+  const contar = (xs, f) => xs.reduce((m, x) => { const k = f(x); if (k != null) m[k] = (m[k] || 0) + 1; return m; }, {});
 
   function metaDe(s) { const { demandas, ...meta } = s; return { ...meta, resumo: E.resumo(s) }; }
   // Pontos da série do ritmo: as exportações guardadas e as referências declaradas (ex.: o board).
