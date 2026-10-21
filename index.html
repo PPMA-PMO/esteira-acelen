@@ -1779,8 +1779,8 @@ details.hist li + li { margin-top: 8px; }
     const lacunas = new Map();
     m.cadastro.forEach((x) => x.itens.forEach((d) => lacunas.set(d.chave, [...(lacunas.get(d.chave) || []), x.campo])));
     const cel = (v) => { const t = v == null ? '' : String(v); return /[;"\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
-    const cab = ['Código', 'Demanda', 'PI', 'Sprint baseline', 'Área', 'Fase na lista', 'Subfase', 'Situação', 'Motivo', 'Marco', 'Data do marco', 'Dias até o marco', 'Resp. Acelen', 'Funcional', 'ABAP', 'Horas', 'Status report', 'Lacunas do cadastro'];
-    const linhas = xs.map((d) => [d.id, d.titulo, d.piPlan, d.sprintPlan, d.area, d.fase, d.etapa ? E.ETAPAS.find((e) => e.k === d.etapa).nome : '', ST[d.st][1], MOTIVO[d.motivo] || '',
+    const cab = ['Código', 'Demanda', 'PI', 'Sprint baseline', 'Sprint real', 'Área', 'Fase na lista', 'Subfase', 'Situação', 'Motivo', 'Marco', 'Data do marco', 'Dias até o marco', 'Resp. Acelen', 'Funcional', 'ABAP', 'Horas', 'Status report', 'Lacunas do cadastro'];
+    const linhas = xs.map((d) => [d.id, d.titulo, d.piPlan, d.sprintPlan, d.sprintReal, d.area, d.fase, d.etapa ? E.ETAPAS.find((e) => e.k === d.etapa).nome : '', ST[d.st][1], MOTIVO[d.motivo] || '',
       d.prazo ? d.marco : '', br(d.prazo), d.prazo ? d.dias : '', d.respAcelen, (d.funcional || []).join(', '), (d.abap || []).join(', '),
       d.horas != null ? String(d.horas).replace('.', ',') : '', d.statusReport, (lacunas.get(d.chave) || []).join(' · ')]);
     return `\uFEFF${[cab, ...linhas].map((l) => l.map(cel).join(';')).join('\r\n')}\r\n`;
@@ -1990,7 +1990,7 @@ details.hist li + li { margin-top: 8px; }
   const FGERAL = [
     ['area', 'Área', (d) => d.area || 'Sem área'],
     ['pi', 'PI', (d) => d.piPlan || 'Sem PI'],
-    ['sprint', 'Sprint', (d) => d.sprintPlan || 'Sem sprint baseline'],
+    ['sprint', 'Sprint', (d) => d.sprintReal || 'Sem sprint real'],
     ['fase', 'Fase', (d) => d.fase || 'Sem fase'],
   ];
   const ORDEM_FASE = ['backlog', 'refinamento', 'construcao', 'homologacao', 'pronto', 'concluido', 'bloqueado', 'cancelada', 'outra'];
@@ -2011,7 +2011,7 @@ details.hist li + li { margin-top: 8px; }
       snap.demandas.filter((d) => passaGeral(d, k)).forEach((d) => { cont[val(d)]++; });
       return `<label>${rot}<select data-geral="${k}"${estado.geral[k] ? ' class="ativo"' : ''}><option value="">Todas</option>${Object.keys(cont).sort(ORD_GERAL[k]).map((v) =>
         `<option value="${esc(v)}"${v === estado.geral[k] ? ' selected' : ''}${cont[v] ? '' : ' disabled'}>${esc(v)} (${num(cont[v])})</option>`).join('')}</select></label>`;
-    }).join('')}<span class="fg-conta" aria-live="polite">${f ? `${num(n)} de ${num(snap.demandas.length)} demandas` : `${num(snap.demandas.length)} demandas, sem filtro`}</span>${f ? '<button type="button" class="btn btn-out btn-sm" data-geral-limpar>Limpar filtros</button><p class="fg-nota">O report inteiro, da faixa ao cadastro, mostra só essas demandas. A referência do board vale para a esteira toda: enquanto houver filtro, o ritmo do fechamento do PI usa só as exportações guardadas.</p>' : ''}</div>`;
+    }).join('')}<span class="fg-conta" aria-live="polite">${f ? `${num(n)} de ${num(snap.demandas.length)} demandas` : `${num(snap.demandas.length)} demandas, sem filtro`}</span>${f ? '<button type="button" class="btn btn-out btn-sm" data-geral-limpar>Limpar filtros</button><p class="fg-nota">O report inteiro, da faixa ao cadastro, mostra só essas demandas. Sprint é o Sprint real (Sprint Pronto/Em Encerramento). A referência do board vale para a esteira toda: enquanto houver filtro, o ritmo do fechamento do PI usa só as exportações guardadas.</p>' : ''}</div>`;
   }
 
   async function recalcular() {
