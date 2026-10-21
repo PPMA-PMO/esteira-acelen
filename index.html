@@ -309,6 +309,11 @@ section { min-width: 0; }
 .tbl tr.sel > td.sel { box-shadow: inset 0 0 0 2px var(--link); }
 .resp .pico { color: var(--warn-ink); }
 .tbl td.nw small { display: block; color: var(--ink-2); font-size: 12px; margin-top: 2px; white-space: normal; max-width: 26ch; }
+.riscos { list-style: none; margin: 0; padding: 0; }
+.riscos li { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 2px 14px; padding: 11px 20px; border-top: 1px solid var(--border-soft); font-size: 13.5px; line-height: 1.5; }
+.riscos li:first-child { border-top: 0; }
+.riscos .st { font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding-top: 2px; }
+.chave { color: var(--warn-ink); font-weight: 600; }
 .resp { list-style: none; margin: 0; padding: 0 20px 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 6px 24px; font-size: 13px; color: var(--ink-2); }
 .resp b { color: var(--ink-1); font-weight: 600; }
 .leitura { list-style: none; margin: 0; padding: 0; }
@@ -339,6 +344,7 @@ details.hist li + li { margin-top: 8px; }
 @media (max-width: 640px) {
   .leitura li { grid-template-columns: 1fr; }
   .fgeral label { flex: 1 1 140px; }
+  .riscos li { grid-template-columns: 1fr; }
   .band-mark { width: 300px; height: 300px; right: -110px; top: -80px; }
   .vazio { grid-template-columns: 1fr; padding: 22px; }
   .vazio svg { width: 72px; height: 72px; }
@@ -419,6 +425,7 @@ details.hist li + li { margin-top: 8px; }
     <section id="secDelta"></section>
     <section id="secKpi"></section>
     <h2 class="bloco" id="esta-semana" tabindex="-1">Esta semana</h2>
+    <section id="secRisco"></section>
     <section id="secAcao"></section>
     <section id="secProximas"></section>
     <div class="grid2">
@@ -1098,6 +1105,32 @@ details.hist li + li { margin-top: 8px; }
     }
     if (invertidas.length) cadastro.push({ campo: 'Início real depois da subida', derivado: true, itens: invertidas, base: null, efeito: 'duração negativa; fica fora do tempo de entrega' });
 
+    // Riscos por regra, com os limites em LIM (escritos também no método). Pessoa-chave: 20% ou mais
+    // das abertas do papel e, além disso, 3 áreas ou mais, um terço ou mais das atrasadas ou pico de
+    // carga acima de 8 h por dia útil. Para responsável Acelen a área não conta: por desenho, cada
+    // área tem um responsável.
+    const LIM = { dias: 30, horas: 160, perto: 14, uatDia: 3, fatia: 0.2, areas: 3, cargaDia: 8 };
+    const atrasoDe = (d) => (['atrasada', 'encerrar', 'atualizar'].includes(d.motivo) ? -d.dias : d.st === 'semcab' && d.p_pronto ? c - dia(d.p_pronto) : null);
+    const totalAtr = st.atrasada || 0;
+    const pessoasChave = ['respAcelen', 'funcional', 'abap'].flatMap((papel) => {
+      const comPapel = abertas.filter((d) => [].concat(d[papel] || []).length);
+      return pessoas[papel].lista.map((p) => {
+        const dsP = comPapel.filter((d) => [].concat(d[papel]).includes(p.nome));
+        const areas = new Set(dsP.map((d) => d.area || 'Sem área')).size;
+        const carga = papel === 'respAcelen' ? null : cargas[papel].find((o) => o.nome === p.nome);
+        const motivos = [papel !== 'respAcelen' && areas >= LIM.areas && 'areas', totalAtr && p.atrasadas * 3 >= totalAtr && 'atrasadas', carga && carga.porDia > LIM.cargaDia && 'carga'].filter(Boolean);
+        return { papel, nome: p.nome, abertas: dsP.length, base: comPapel.length, areas, atrasadas: p.atrasadas, totalAtr, pico: carga ? carga.pico : null, motivos };
+      }).filter((x) => x.base && x.abertas / x.base >= LIM.fatia && x.motivos.length);
+    });
+    const riscos = [
+      { k: 'atraso', nivel: 'critico', itens: abertas.map((d) => ({ d, atraso: atrasoDe(d) })).filter((x) => x.atraso > LIM.dias).sort((a, b) => b.atraso - a.atraso) },
+      { k: 'bloqueada', nivel: 'critico', itens: abertas.filter((d) => d.st === 'bloqueada' && !d.p_pronto && d.horas == null && !d.statusReport).map((d) => ({ d })) },
+      { k: 'grande', nivel: 'atencao', itens: abertas.filter((d) => d.horas > LIM.horas && (d.st === 'semcab' || (d.dias != null && d.dias >= 0 && d.dias <= LIM.perto))).sort((a, b) => b.horas - a.horas).map((d) => ({ d })) },
+      { k: 'uatDia', nivel: 'atencao', itens: uat.grupos.flatMap((g) => g.picos.filter((x) => x.n >= LIM.uatDia).map((x) => ({ nome: g.nome, ...x }))) },
+      { k: 'chave', nivel: 'atencao', itens: pessoasChave },
+      { k: 'semData', nivel: 'info', itens: abertas.filter((d) => d.st === 'semdata' || d.st === 'semcab').map((d) => ({ d })), base: abertas.length },
+    ].filter((r) => r.itens.length);
+
     // Leitura da semana. Fila: antes do pronto × última milha. Prazo: a fase medida (5 ou mais) com
     // menor e maior % no prazo. Pedido: o grupo de Pedem ação com mais horas paradas e 3 ou mais demandas.
     const somaEt = (ks) => { const x = etapas.filter((e) => ks.includes(e.k)); return { n: x.reduce((s, e) => s + e.n, 0), horas: x.reduce((s, e) => s + e.horas, 0) }; };
@@ -1112,7 +1145,7 @@ details.hist li + li { margin-top: 8px; }
     };
 
     return {
-      leitura, snap, corte: snap.corte, ds, abertas, concl, prontas, st, etapas, fora, acao, pis, aderencia, meses, proximas, areas,
+      leitura, riscos, pessoasChave, LIM, snap, corte: snap.corte, ds, abertas, concl, prontas, st, etapas, fora, acao, pis, aderencia, meses, proximas, areas,
       pessoas, replan, qualidade, cadastro, repetidos, previsao, cargas, uat, lead, motivos: contar(ds.filter((d) => d.motivo), (d) => d.motivo),
       horas: { total: somaH(ds), concl: somaH(concl), abertas: somaH(abertas), prontas: somaH(prontas), abertasSemEst: sem(abertas, 'horas').length },
       piAtual, outrosPIs, desconhecidas: contar(ds.filter((d) => d.st === 'desconhecida'), (d) => d.fase || '(sem fase)'),
@@ -1190,6 +1223,7 @@ details.hist li + li { margin-top: 8px; }
     renderDelta(m);
     renderKpi(m);
     renderPrevisao(m);
+    renderRisco(m);
     renderAcao(m);
     renderPrazo(m);
     renderLead(m);
@@ -1335,6 +1369,11 @@ details.hist li + li { margin-top: 8px; }
   function textoSemana(m) {
     const L = [`Esteira de melhorias SAP · Acelen · exportação de ${dt(m.corte, true)}${temGeral() ? ` · filtro: ${descricaoGeral()}` : ''}`, '', `${$('#titulo').textContent}. ${$('#subtitulo').textContent}`, ''];
     leituras(m).forEach((l) => L.push(`${l.rot}: ${l.txt}${l.sub ? ` (${l.sub})` : ''}`));
+    const rs = riscoLinhas(m);
+    if (rs.length) {
+      L.push('', 'Riscos');
+      rs.forEach((l) => L.push(`- ${NIVEL[l.nivel][1]}: ${l.txt}${l.cods.length ? `: ${l.cods.map((x) => `${x.d.id}${x.extra ? ` (${x.extra})` : ''}`).join(', ')}` : ''}`));
+    }
     const total = m.acao.reduce((s, g) => s + g.itens.length, 0);
     if (total) {
       L.push('', `Pedem ação: ${pl(total, 'demanda', 'demandas')}`);
@@ -1439,6 +1478,33 @@ details.hist li + li { margin-top: 8px; }
         <span class="meta">${p.atrasadas ? `<span class="st-critical">▲ ${num(p.atrasadas)} ${p.atrasadas === 1 ? 'atrasada' : 'atrasadas'}</span> · ` : ''}${num(p.semdata)} sem data na fase · ${num(p.semEst)} sem estimativa de horas</span></div>` : '',
     ];
     $('#secKpi').innerHTML = secH('A esteira', `${pl(m.ds.length, 'demanda', 'demandas')} · ${num(m.pis.length)} PIs · ${hh(m.horas.total)} estimadas`) + `<div class="kpis">${cards.join('')}</div>`;
+  }
+
+  // ---------- riscos ----------
+  const NIVEL = { critico: ['▲', 'Crítico', 'critical'], atencao: ['◐', 'Atenção', 'at-risk'], info: ['—', 'Info', 'no-data'] };
+  const PAPEL = { respAcelen: 'responsável Acelen', funcional: 'funcional', abap: 'ABAP' };
+  const chaveTxt = (x) => `${x.nome} (${PAPEL[x.papel]}: ${x.abertas} de ${x.base} abertas, ${pct(x.abertas, x.base)}%${x.motivos.includes('areas') ? `, ${x.areas} áreas` : ''}${x.motivos.includes('atrasadas') ? `, ${x.atrasadas} das ${x.totalAtr} atrasadas` : ''}${x.motivos.includes('carga') ? `, pico de ${num(Math.round(x.pico.porDia * 10) / 10)} h por dia útil até ${dt(x.pico.ate)}` : ''})`;
+  // Cada risco vira uma frase e, quando há, os códigos (com o número que justifica entre parênteses).
+  function riscoLinhas(m) {
+    const L = m.LIM;
+    return m.riscos.map((r) => {
+      const n = r.itens.length;
+      const base = { nivel: r.nivel, cods: [] };
+      if (r.k === 'atraso') return { ...base, txt: `${pl(n, 'demanda passou', 'demandas passaram')} mais de ${L.dias} dias do prazo da fase`, cods: r.itens.map((x) => ({ d: x.d, extra: `${x.atraso} d` })) };
+      if (r.k === 'bloqueada') return { ...base, txt: `${pl(n, 'bloqueada', 'bloqueadas')} sem data de pronto, estimativa de horas nem status report`, cods: r.itens.map((x) => ({ d: x.d })) };
+      if (r.k === 'grande') return { ...base, txt: `${pl(n, 'demanda', 'demandas')} acima de ${L.horas} h com prazo em até ${L.perto} dias ou pronta sem CAB`, cods: r.itens.map((x) => ({ d: x.d, extra: `${num(x.d.horas)} h, ${x.d.st === 'semcab' ? 'sem CAB' : `${(MARCO_CURTO[x.d.marco] || x.d.marco).toLowerCase()} ${dt(x.d.prazo)}`}` })) };
+      if (r.k === 'uatDia') return { ...base, txt: `${L.uatDia} ou mais homologações no mesmo dia para o mesmo responsável Acelen: ${r.itens.map((x) => `${x.nome}, ${x.n} em ${dt(x.data)}`).join('; ')}` };
+      if (r.k === 'chave') return { ...base, txt: `${n === 1 ? 'Pessoa-chave' : 'Pessoas-chave'}: ${r.itens.map(chaveTxt).join('; ')}` };
+      return { ...base, txt: `${num(n)} das ${num(r.base)} abertas sem data na fase atual: o prazo delas não é medido` };
+    });
+  }
+  function renderRisco(m) {
+    const ls = riscoLinhas(m);
+    const MAX = 4;
+    $('#secRisco').innerHTML = ls.length ? secH('Riscos', `${pl(ls.length, 'aviso', 'avisos')} por regra · os limites estão em “Como os números são calculados”`) + `<div class="card"><ul class="riscos">${ls.map((l) => {
+      const [g, rot, cls] = NIVEL[l.nivel];
+      return `<li><span class="st st-${cls}"><i aria-hidden="true">${g}</i> ${rot}</span><span>${esc(l.txt)}${l.cods.length ? `: ${l.cods.slice(0, MAX).map((x) => `${codBtn(x.d)}${x.extra ? ` <span class="muted">(${esc(x.extra)})</span>` : ''}`).join(', ')}${l.cods.length > MAX ? ` <span class="muted">e mais ${l.cods.length - MAX}: ${l.cods.slice(MAX).map((x) => esc(x.d.id)).join(', ')}</span>` : ''}` : ''}</span></li>`;
+    }).join('')}</ul></div>` : '';
   }
 
   // Uma linha por demanda: o que é igual no grupo inteiro (a fase) sobe para o cabeçalho do grupo.
@@ -1601,10 +1667,11 @@ details.hist li + li { margin-top: 8px; }
     const mx = Math.max(1, ...r.lista.map((p) => p.abertas));
     const top = r.lista.slice(0, 8);
     const nCob = (nome) => cobrancaDe(m, estado.pessoas, nome).length;
+    const chave = (nome) => m.pessoasChave.find((x) => x.papel === estado.pessoas && x.nome === nome);
     $('#secPessoas').innerHTML = secH('Pessoas', 'quem tem demanda aberta') + `<div class="card"><div class="filtros" role="group" aria-label="Lado">${Object.entries(OP).map(([k, v]) => `<button type="button" class="chip" data-pessoas="${k}" aria-pressed="${estado.pessoas === k}">${v}</button>`).join('')}</div>
       <div class="linhas">${top.length ? top.map((p) => `<div class="linha"><span class="nome" title="${esc(p.nome)}">${esc(p.nome)}</span>${progresso(p.abertas, mx, 'var(--e3)', true)}<span class="val"><b>${num(p.abertas)}</b> <span class="muted">${p.abertas === 1 ? 'aberta' : 'abertas'}</span></span>
-      <span class="sub">${num(p.total)} no total · ${pct(p.total, r.comAtrib)}% das ${num(r.comAtrib)} ${COM[estado.pessoas]}${p.atrasadas ? ` · <span class="st-critical">▲ ${num(p.atrasadas)} ${p.atrasadas === 1 ? 'atrasada' : 'atrasadas'}</span>` : ''}</span>${(() => { const n = nCob(p.nome); return n ? `<button type="button" class="chip cobrar" data-cobrar="${esc(p.nome)}" title="Copiar a cobrança de ${esc(p.nome)}" aria-label="Copiar cobrança de ${esc(p.nome)}: ${n} ${n === 1 ? 'demanda' : 'demandas'}">Cobrar · ${num(n)}</button>` : ''; })()}</div>`).join('') : '<div class="card-p nota">Ninguém atribuído.</div>'}</div>
-      <p class="nota nota-pe">${r.lista.length > top.length ? `Mais ${pl(r.lista.length - top.length, 'pessoa', 'pessoas')} com menos demandas abertas. ` : ''}Demanda com mais de uma pessoa conta para cada uma. Cobrar: copia as abertas da pessoa com o que cada uma pede (encerrar, atualizar a fase, agendar a CAB, preencher data, status report ou horas), para colar no e-mail ou no Teams.</p></div>`;
+      <span class="sub">${chave(p.nome) ? `<span class="chave" title="${esc(chaveTxt(chave(p.nome)))}">◆ pessoa-chave</span> · ` : ''}${num(p.total)} no total · ${pct(p.total, r.comAtrib)}% das ${num(r.comAtrib)} ${COM[estado.pessoas]}${p.atrasadas ? ` · <span class="st-critical">▲ ${num(p.atrasadas)} ${p.atrasadas === 1 ? 'atrasada' : 'atrasadas'}</span>` : ''}</span>${(() => { const n = nCob(p.nome); return n ? `<button type="button" class="chip cobrar" data-cobrar="${esc(p.nome)}" title="Copiar a cobrança de ${esc(p.nome)}" aria-label="Copiar cobrança de ${esc(p.nome)}: ${n} ${n === 1 ? 'demanda' : 'demandas'}">Cobrar · ${num(n)}</button>` : ''; })()}</div>`).join('') : '<div class="card-p nota">Ninguém atribuído.</div>'}</div>
+      <p class="nota nota-pe">${r.lista.length > top.length ? `Mais ${pl(r.lista.length - top.length, 'pessoa', 'pessoas')} com menos demandas abertas. ` : ''}Demanda com mais de uma pessoa conta para cada uma. Pessoa-chave: 20% ou mais das abertas do papel e, além disso, 3 áreas ou mais (fora responsável Acelen), um terço ou mais das atrasadas ou pico de carga acima de 8 h por dia útil. Cobrar: copia as abertas da pessoa com o que cada uma pede (encerrar, atualizar a fase, agendar a CAB, preencher data, status report ou horas), para colar no e-mail ou no Teams.</p></div>`;
   }
 
   function renderQualidade(m) {
@@ -1701,6 +1768,7 @@ details.hist li + li { margin-top: 8px; }
       <p><b>Prazo planejado × real.</b> Real ≤ planejado nas datas de Refinamento, Construção, Homologação e Pronto. Só entram demandas com as duas datas preenchidas e com a data real até o corte: data real no futuro é plano copiado no campo real.</p>
       <p><b>PI.</b> PI Planning. Concluída no próprio PI: PI Entregue igual ao PI Planning. Carry-over: PI Entregue posterior. Horas: QtdHoras (estimativa).</p>
       <p><b>Pessoas.</b> Funcional e ABAP vêm no formato do SharePoint (nome;#id); fica o nome. Demanda com mais de uma pessoa conta para cada uma.</p>
+      <p><b>Riscos.</b> Crítico: mais de ${m.LIM.dias} dias além do prazo da fase (nas prontas sem CAB, contado do pronto planejado), ou bloqueada sem data de pronto, estimativa nem status report. Atenção: demanda acima de ${m.LIM.horas} h com prazo em até ${m.LIM.perto} dias ou pronta sem CAB; ${m.LIM.uatDia} ou mais homologações no mesmo dia para o mesmo responsável Acelen; pessoa-chave (${Math.round(m.LIM.fatia * 100)}% ou mais das abertas do papel e ${m.LIM.areas} áreas ou mais, um terço ou mais das atrasadas ou pico acima de ${m.LIM.cargaDia} h por dia útil). Info: abertas sem data na fase atual.</p>
       <p><b>Comparação.</b> Cada exportação carregada fica guardada com a data de corte. A seção de mudanças compara a exportação aberta com a anterior, demanda a demanda, pelo NumeroDemanda (e pelo título, quando o número se repete).</p>
     </div></div>`;
   }
