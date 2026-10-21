@@ -133,6 +133,9 @@ a:hover { color: var(--link-hover); }
 .cap[aria-pressed="true"] span, .cap[aria-pressed="true"] .q { color: var(--lime-ink); }
 .fora { margin-top: 12px; font-size: 12.5px; color: var(--on-dark-3); display: flex; gap: 6px 14px; flex-wrap: wrap; }
 .fora b { color: var(--on-dark-1); font-weight: 600; }
+.fora .fim { background: none; border: 0; padding: 0; color: var(--on-dark-2); cursor: pointer; text-decoration: underline; text-decoration-color: rgba(255, 255, 255, .25); text-underline-offset: 3px; }
+.fora .fim:hover { text-decoration-color: currentColor; }
+.fora .sep { width: 1px; background: rgba(255, 255, 255, .2); align-self: stretch; }
 
 /* ---------- área de trabalho ---------- */
 main.wrap { padding-block: 28px 56px; display: grid; gap: 28px; }
@@ -607,18 +610,21 @@ details.hist li + li { margin-top: 8px; }
     return { st: n < 0 ? 'atrasada' : n <= 7 ? 'vence' : 'noprazo', marco, prazo: d[campo], dias: n };
   }
 
-  // O fluxo macro (Iniciação → Planejamento → Execução → Encerramento) e de onde vem
-  // cada etapa na lista. Pronto/Em Encerramento se divide pela CAB: sem CAB é preparação
-  // final, CAB futura é implantação agendada, CAB que já passou é encerramento pendente.
+  // O Fluxo Macro dos Projetos do PMO: 4 fases, 8 subfases, e de onde vem cada subfase na
+  // lista, que tem fases próprias. Duas fases da lista se dividem por data: Backlog pela
+  // Data de Início (sem data é Pré Projeto; com data, já preparada, é Preparação) e
+  // Pronto/Em Encerramento pela Data CAB (sem CAB é preparação final, CAB futura é
+  // implantação agendada, CAB que já passou é encerramento pendente). Concluída saiu do
+  // fluxo: não ocupa subfase.
   const ETAPAS = [
-    { k: 'preprojeto', grupo: 'Iniciação', nome: 'Pré projeto e preparação', fonte: 'Backlog', estagio: 'iniciacao' },
+    { k: 'preprojeto', grupo: 'Iniciação', nome: 'Pré Projeto', fonte: 'Backlog · sem data', estagio: 'iniciacao' },
+    { k: 'preparacao', grupo: 'Iniciação', nome: 'Preparação', fonte: 'Backlog · com data', estagio: 'iniciacao' },
     { k: 'planejamento', grupo: 'Planejamento', nome: 'Planejamento', fonte: 'Em Refinamento', estagio: 'planejamento' },
     { k: 'construcao', grupo: 'Execução', nome: 'Construção', fonte: 'Em Construção', estagio: 'execucao' },
     { k: 'homologacao', grupo: 'Execução', nome: 'Homologação', fonte: 'Em Homologação', estagio: 'execucao' },
     { k: 'prepfinal', grupo: 'Execução', nome: 'Preparação final', fonte: 'Pronto · sem CAB', estagio: 'execucao' },
     { k: 'implantacao', grupo: 'Execução', nome: 'Implantação', fonte: 'Pronto · CAB futura', estagio: 'execucao' },
     { k: 'encerramento', grupo: 'Encerramento', nome: 'Encerramento', fonte: 'Pronto · CAB passou', estagio: 'encerramento' },
-    { k: 'concluido', grupo: 'Encerramento', nome: 'Concluído', fonte: 'Concluído', estagio: 'concluido' },
   ];
   const ESTAGIOS = [
     { k: 'iniciacao', nome: 'Iniciação' }, { k: 'planejamento', nome: 'Planejamento' }, { k: 'execucao', nome: 'Execução' },
@@ -627,7 +633,8 @@ details.hist li + li { margin-top: 8px; }
   function etapaDe(d, c) {
     const t = faseTipo(d.fase);
     if (t === 'pronto') return !d.cab ? 'prepfinal' : dia(d.cab) < c ? 'encerramento' : 'implantacao';
-    return { backlog: 'preprojeto', refinamento: 'planejamento', construcao: 'construcao', homologacao: 'homologacao', concluido: 'concluido' }[t] || null;
+    if (t === 'backlog') return d.p_inicio ? 'preparacao' : 'preprojeto';
+    return { refinamento: 'planejamento', construcao: 'construcao', homologacao: 'homologacao' }[t] || null;
   }
   // O número da demanda repete na lista (a CR herda o número da original); aí o título separa.
   function chaves(demandas) {
@@ -667,10 +674,10 @@ details.hist li + li { margin-top: 8px; }
     const concl = ds.filter((d) => d.st === 'concluida');
     const prontas = ds.filter((d) => d.tipo === 'pronto');
     const st = contar(ds, (d) => d.st);
-    const estagioDe = (d) => (d.etapa ? ETAPAS.find((e) => e.k === d.etapa).estagio : 'fora');
+    const estagioDe = (d) => (d.st === 'concluida' ? 'concluido' : d.etapa ? ETAPAS.find((e) => e.k === d.etapa).estagio : 'fora');
 
     const etapas = ETAPAS.map((e) => { const x = ds.filter((d) => d.etapa === e.k); return { ...e, n: x.length, horas: somaH(x) }; });
-    const fora = contar(ds.filter((d) => !d.etapa), (d) => d.fase || '(sem fase)');
+    const fora = contar(ds.filter((d) => !d.etapa && d.st !== 'concluida'), (d) => d.fase || '(sem fase)');
 
     const acao = [
       { k: 'bloqueada', titulo: 'Bloqueadas', nota: 'fora do fluxo até alguém destravar', itens: ds.filter((d) => d.st === 'bloqueada') },
@@ -906,8 +913,12 @@ details.hist li + li { margin-top: 8px; }
       `<button type="button" class="cap${e.n ? '' : ' vazia'}" data-etapa="${e.k}" aria-pressed="${estado.filtro.etapa === e.k}" title="Na lista: ${esc(e.fonte)}"><b>${esc(e.nome)}</b><span><span class="q">${num(e.n)}</span>${e.horas ? ` · ${hh(e.horas)}` : ''}</span><span>${esc(e.fonte)}</span></button>`).join('')}</div></div>`).join('');
     $('#trilho').hidden = false;
     const fora = Object.entries(m.fora);
-    $('#fora').innerHTML = fora.length ? `<span>Fora do fluxo:</span>${fora.map(([f, n]) => `<span>${/bloque/i.test(f) ? '❙❙' : /cancel/i.test(f) ? '✕' : '·'} <b>${num(n)}</b> ${esc(f)}</span>`).join('')}` : '';
-    $('#fora').hidden = !fora.length;
+    const conc = m.concl.length;
+    $('#fora').innerHTML = [
+      conc && `<button type="button" class="fim" data-ir-st="concluida">▣ <b>${num(conc)}</b> ${conc === 1 ? 'concluída' : 'concluídas'} · ${hh(m.horas.concl)} · saíram do fluxo</button>`,
+      fora.length && `<span>Fora do fluxo:</span>${fora.map(([f, n]) => `<span>${/bloque/i.test(f) ? '❙❙' : /cancel/i.test(f) ? '✕' : '·'} <b>${num(n)}</b> ${esc(f)}</span>`).join('')}`,
+    ].filter(Boolean).join('<span class="sep" aria-hidden="true"></span>');
+    $('#fora').hidden = !conc && !fora.length;
   }
 
   function renderDelta(m) {
@@ -1112,7 +1123,7 @@ details.hist li + li { margin-top: 8px; }
       <p><b>Fonte.</b> ${esc(s.arquivo || 'exportação')} · ${pl(s.total, 'linha', 'linhas')} · exportada em ${dt(s.corte, true)}, ${quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}${s.autor ? ` por ${esc(s.autor)}` : ''}. ${s.colunasAusentes.length ? `Colunas ausentes no arquivo: ${s.colunasAusentes.map(esc).join(', ')}.` : 'Todas as colunas esperadas estão no arquivo.'}</p>
       <p><b>Data de corte.</b> A data em que a planilha foi exportada (${dt(s.corte, true)}), não a data de hoje. Todo “passou da data” e “vence em 7 dias” é contado a partir dela.</p>
       <p><b>Prazo da demanda aberta.</b> A data planejada que encerra a fase atual: Backlog → Data de Início; Em Refinamento → Data de Entrega Refinamento; Em Construção → Data de Entrega Construção; Em Homologação → Data de Entrega Homologação; Pronto/Em Encerramento → Data CAB. Sem essa data, a demanda fica “sem data” e não entra na conta de atraso.</p>
-      <p><b>Fluxo macro.</b> ${[...new Set(E.ETAPAS.map((e) => e.grupo))].map((g) => `${esc(g)}: ${E.ETAPAS.filter((e) => e.grupo === g).map((e) => `${esc(e.nome)} ← ${esc(e.fonte)}`).join('; ')}`).join('. ')}. Pronto/Em Encerramento se divide pela Data CAB: sem data, futura ou já passada. Bloqueadas e canceladas ficam fora do fluxo.</p>
+      <p><b>Fluxo Macro dos Projetos.</b> ${[...new Set(E.ETAPAS.map((e) => e.grupo))].map((g) => `${esc(g)}: ${E.ETAPAS.filter((e) => e.grupo === g).map((e) => `${esc(e.nome)} ← ${esc(e.fonte)}`).join('; ')}`).join('. ')}. Backlog se divide pela Data de Início (sem data ou com data); Pronto/Em Encerramento, pela Data CAB (sem data, futura ou já passada). Concluídas saíram do fluxo; bloqueadas e canceladas ficam fora dele.</p>
       <p><b>Prazo planejado × real.</b> Real ≤ planejado nas datas de Refinamento, Construção, Homologação e Pronto. Só entram demandas com as duas datas preenchidas.</p>
       <p><b>PI.</b> PI Planning. Concluída no próprio PI: PI Entregue igual ao PI Planning. Carry-over: PI Entregue posterior. Horas: QtdHoras (estimativa).</p>
       <p><b>Pessoas.</b> Funcional e ABAP vêm no formato do SharePoint (nome;#id); fica o nome. Demanda com mais de uma pessoa conta para cada uma.</p>
@@ -1239,6 +1250,8 @@ details.hist li + li { margin-top: 8px; }
 
   document.addEventListener('click', (e) => {
     const t = e.target;
+    const irSt = t.closest('[data-ir-st]');
+    if (irSt) { estado.filtro = { st: irSt.dataset.irSt, pi: '', area: '', etapa: '', q: '' }; document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', 'false')); irParaTabela(); return; }
     const abrir = t.closest('[data-abrir]');
     if (abrir) { abrirDemanda(abrir.dataset.abrir); return; }
     const cap = t.closest('[data-etapa]');

@@ -27,7 +27,8 @@ const confere = (ok, txt) => { if (!ok) falhas.push(txt); };
 const soma = (o) => Object.values(o).reduce((s, n) => s + n, 0);
 
 confere(soma(m.st) === m.ds.length, `situações somam ${soma(m.st)}, demandas ${m.ds.length}`);
-confere(m.etapas.reduce((s, e) => s + e.n, 0) + soma(m.fora) === m.ds.length, 'etapas + fora do fluxo não fecham com o total');
+confere(m.etapas.reduce((s, e) => s + e.n, 0) + m.concl.length + soma(m.fora) === m.ds.length, 'subfases + concluídas + fora do fluxo não fecham com o total');
+confere(m.etapas.length === 8 && new Set(m.etapas.map((e) => e.grupo)).size === 4, 'o fluxo macro precisa ter 4 fases e 8 subfases');
 confere(m.pis.reduce((s, p) => s + p.n, 0) === m.ds.length, 'PIs não fecham com o total');
 confere(m.areas.reduce((s, a) => s + a.n, 0) === m.ds.length, 'áreas não fecham com o total');
 confere(m.pis.every((p) => soma(p.est) === p.n), 'estágios de algum PI não fecham com o PI');

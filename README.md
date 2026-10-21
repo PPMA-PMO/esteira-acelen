@@ -26,9 +26,12 @@ lê ou escreve no Supabase do PPMA.
   (Backlog → Data de Início · Em Refinamento → Data de Entrega Refinamento ·
   Em Construção → Data de Entrega Construção · Em Homologação → Data de Entrega Homologação ·
   Pronto/Em Encerramento → Data CAB). Sem essa data, a demanda é "sem data" e não entra na conta de atraso.
-- **Fluxo macro** (Iniciação → Planejamento → Execução → Encerramento): Backlog é pré projeto e preparação,
-  Em Refinamento é planejamento, e Pronto/Em Encerramento se divide pela Data CAB — sem data é
-  preparação final, data futura é implantação, data que já passou é encerramento pendente.
+- **Fluxo Macro dos Projetos** do PMO: 4 fases e 8 subfases — Iniciação (Pré Projeto, Preparação),
+  Planejamento (Planejamento), Execução (Construção, Homologação, Preparação final, Implantação),
+  Encerramento (Encerramento). A lista tem fases próprias, e duas se dividem por data:
+  Backlog sem Data de Início é Pré Projeto, com data é Preparação; Pronto/Em Encerramento sem
+  Data CAB é Preparação final, com CAB futura é Implantação, com CAB que já passou é Encerramento.
+  Em Refinamento é Planejamento. Concluídas saíram do fluxo; bloqueadas e canceladas ficam fora dele.
   A tabela fica em `ETAPAS`, no núcleo.
 - **Prazo planejado × real**, **cadência por PI**, **CABs por mês**, **área × PI**, **pessoas**,
   **replanejamento** e **qualidade do cadastro** seguem o método do board executivo de 28/09/2026.
