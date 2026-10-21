@@ -40,8 +40,10 @@ lê ou escreve no Supabase do PPMA.
 
 ```bash
 node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx>              # imprime os números, confere as partições
-node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle   # estraga uma demanda: precisa reprovar
+node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle          # fase desconhecida: precisa reprovar
+node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-subfase  # demanda na subfase errada: precisa reprovar
 ```
 
-O verificador roda o mesmo `<script id="nucleo">` da página. Na exportação de 16/10/2026
+O verificador roda o mesmo `<script id="nucleo">` da página e confere a subfase de cada demanda
+contra a regra escrita sobre os campos crus. Na exportação de 16/10/2026
 (148 demandas) os números foram conferidos contra um cálculo independente em pandas.

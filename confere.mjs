@@ -2,10 +2,13 @@
 //
 //   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx>             imprime os números e confere as partições
 //   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle  estraga uma demanda e PRECISA reprovar
+//   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-subfase  põe uma demanda na subfase errada e PRECISA reprovar
 //
 // Roda o mesmo código que a página roda; nada de reimplementar a regra aqui. O que se confere
 // são invariantes que valem para qualquer exportação: cada demanda cai em exatamente uma
 // situação e em no máximo uma etapa do fluxo, e as somas de cada seção fecham com o total.
+// A subfase de cada demanda é conferida contra a regra escrita sobre os campos crus (fase da
+// lista, Data de Iníco, Data CAB): somas que fecham não provam que cada uma caiu no lugar certo.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -21,6 +24,10 @@ const buf = readFileSync(arquivo);
 const snap = E.normalizar(await E.lerXlsx(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)), arquivo);
 if (modo === '--controle') snap.demandas[0].fase = 'Fase que não existe';
 const m = E.analisar(snap, null);
+if (modo === '--controle-subfase') {
+  const d = m.ds.find((x) => x.etapa);
+  d.etapa = d.etapa === 'preprojeto' ? 'preparacao' : 'preprojeto';
+}
 
 const falhas = [];
 const confere = (ok, txt) => { if (!ok) falhas.push(txt); };
@@ -34,6 +41,18 @@ confere(m.areas.reduce((s, a) => s + a.n, 0) === m.ds.length, 'áreas não fecha
 confere(m.pis.every((p) => soma(p.est) === p.n), 'estágios de algum PI não fecham com o PI');
 confere(Object.keys(m.fora).every((f) => /bloque|cancel/i.test(f)), `fase fora do fluxo e desconhecida: ${Object.keys(m.fora).filter((f) => !/bloque|cancel/i.test(f)).join(', ')}`);
 confere(new Set(m.ds.map((d) => d.chave)).size === m.ds.length, 'chave de comparação repetida');
+
+// A regra do Fluxo Macro, como está no README, sobre os campos crus.
+const c = E.dia(snap.corte);
+const REGRA = {
+  backlog: (d) => (d.p_inicio ? 'preparacao' : 'preprojeto'),
+  refinamento: () => 'planejamento',
+  construcao: () => 'construcao',
+  homologacao: () => 'homologacao',
+  pronto: (d) => (!d.cab ? 'prepfinal' : E.dia(d.cab) >= c ? 'implantacao' : 'encerramento'),
+};
+const fora = m.ds.filter((d) => (REGRA[E.faseTipo(d.fase)] ? REGRA[E.faseTipo(d.fase)](d) : null) !== (d.etapa ?? null));
+confere(!fora.length, `subfase fora da regra: ${fora.slice(0, 5).map((d) => `${d.id} (${d.fase}) em ${d.etapa}`).join(', ')}`);
 
 console.log(`exportação ${snap.corte} · ${snap.total} demandas · ${snap.colunasAusentes.length} colunas ausentes`);
 console.log('situação', m.st);

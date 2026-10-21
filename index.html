@@ -128,13 +128,15 @@ a:hover { color: var(--link-hover); }
 .cap b { display: block; font-size: 13px; font-weight: 600; line-height: 1.25; }
 .cap > span { display: block; font-size: 11.5px; color: var(--on-dark-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cap .q { font: 700 16px/1.25 var(--font-display); color: var(--on-dark-1); }
-.cap.vazia { opacity: .55; }
+.cap.vazia { background: transparent; border-style: dashed; border-color: rgba(255, 255, 255, .2); }
+.cap.vazia b { color: var(--on-dark-2); }
 .cap[aria-pressed="true"] { background: var(--grad-brand); border-color: transparent; color: var(--lime-ink); }
 .cap[aria-pressed="true"] span, .cap[aria-pressed="true"] .q { color: var(--lime-ink); }
 .fora { margin-top: 12px; font-size: 12.5px; color: var(--on-dark-3); display: flex; gap: 6px 14px; flex-wrap: wrap; }
 .fora b { color: var(--on-dark-1); font-weight: 600; }
 .fora .fim { background: none; border: 0; padding: 0; color: var(--on-dark-2); cursor: pointer; text-decoration: underline; text-decoration-color: rgba(255, 255, 255, .25); text-underline-offset: 3px; }
 .fora .fim:hover { text-decoration-color: currentColor; }
+.fora .grupo-fora { display: inline-flex; flex-wrap: wrap; gap: 6px 14px; }
 .fora .sep { width: 1px; background: rgba(255, 255, 255, .2); align-self: stretch; }
 
 /* ---------- área de trabalho ---------- */
@@ -508,7 +510,10 @@ details.hist li + li { margin-top: 8px; }
     ['statusReport', 'txt', 'Status Report Semanal'],
   ];
   const norm = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  // A data de corte é o dia da exportação no fuso de Brasília, onde a lista é mantida.
+  // Pelo fuso de quem abre, uma exportação feita depois das 21h mudaria de dia conforme a máquina.
+  const FUSO = 'America/Sao_Paulo';
+  const ymd = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: FUSO, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 
   function paraData(v) {
     const s = String(v).trim();
@@ -605,7 +610,7 @@ details.hist li + li { margin-top: 8px; }
     if (t === 'cancelada') return { st: 'cancelada' };
     if (t === 'bloqueado') return { st: 'bloqueada' };
     const [campo, marco] = PRAZO[t];
-    if (!d[campo]) return { st: t === 'pronto' ? 'semcab' : 'semdata', marco };
+    if (!d[campo]) return { st: t === 'pronto' ? 'semcab' : t === 'backlog' ? 'aguardando' : 'semdata', marco };
     const n = dia(d[campo]) - c;
     return { st: n < 0 ? 'atrasada' : n <= 7 ? 'vence' : 'noprazo', marco, prazo: d[campo], dias: n };
   }
@@ -628,7 +633,7 @@ details.hist li + li { margin-top: 8px; }
   ];
   const ESTAGIOS = [
     { k: 'iniciacao', nome: 'Iniciação' }, { k: 'planejamento', nome: 'Planejamento' }, { k: 'execucao', nome: 'Execução' },
-    { k: 'encerramento', nome: 'Encerramento' }, { k: 'concluido', nome: 'Concluído' }, { k: 'fora', nome: 'Bloqueada ou cancelada' },
+    { k: 'encerramento', nome: 'Encerramento' }, { k: 'concluido', nome: 'Concluído' }, { k: 'fora', nome: 'Fora do fluxo' },
   ];
   function etapaDe(d, c) {
     const t = faseTipo(d.fase);
@@ -650,12 +655,14 @@ details.hist li + li { margin-top: 8px; }
   function comparar(ds, ant) {
     const ca = dia(ant.corte);
     const ka = chaves(ant.demandas);
-    const antes = new Map(ant.demandas.map((d, i) => [ka[i], { ...d, ...situacao(d, ca) }]));
+    const antes = new Map(ant.demandas.map((d, i) => [ka[i], { ...d, ...situacao(d, ca), etapa: etapaDe(d, ca) }]));
+    const nomeEtapa = (k) => (ETAPAS.find((e) => e.k === k) || {}).nome;
     const itens = [];
     for (const d of ds) {
       const a = antes.get(d.chave);
       if (!a) { itens.push({ tipo: 'nova', d }); continue; }
       if (a.fase !== d.fase) itens.push({ tipo: d.st === 'concluida' ? 'concluida' : 'fase', d, de: a.fase, para: d.fase });
+      else if (a.etapa && d.etapa && a.etapa !== d.etapa) itens.push({ tipo: 'subfase', d, de: nomeEtapa(a.etapa), para: nomeEtapa(d.etapa) });
       for (const [k, nome] of MARCOS) {
         if (a[k] && d[k] && a[k] !== d[k]) itens.push({ tipo: 'replan', d, nome, de: a[k], para: d[k], dias: dia(d[k]) - dia(a[k]) });
       }
@@ -704,7 +711,7 @@ details.hist li + li { margin-top: 8px; }
       ['Refinamento', 'p_refinamento', 'r_refinamento'], ['Construção', 'p_construcao', 'r_construcao'],
       ['Homologação', 'p_homologacao', 'r_homologacao'], ['Pronto', 'p_pronto', 'r_pronto'],
     ].map(([nome, p, r]) => {
-      const x = ds.filter((d) => d[p] && d[r]);
+      const x = ds.filter((d) => d[p] && d[r] && dia(d[r]) <= c);
       const tarde = x.filter((d) => d[r] > d[p]);
       const porPI = {};
       x.forEach((d) => { const o = (porPI[d.piPlan || 'Sem PI'] ||= { ok: 0, n: 0 }); o.n++; if (d[r] <= d[p]) o.ok++; });
@@ -792,6 +799,7 @@ details.hist li + li { margin-top: 8px; }
       { campo: 'Nº do Charm', itens: sem(ds, 'charm'), base: ds.length, baseNome: 'demandas', efeito: 'a demanda não se liga à mudança em produção', semIds: true },
       { campo: 'Qtd de Incidentes', itens: sem(concl, 'incidentes'), base: concl.length, baseNome: 'concluídas', efeito: 'o hypercare não tem medida de resultado', semIds: true },
       { campo: 'NumeroDemanda', itens: ds.filter((d) => repetidos.includes(String(d.id))), base: null, rotulo: `${repetidos.length} ${repetidos.length === 1 ? 'número repetido' : 'números repetidos'}`, efeito: 'linhas diferentes com o mesmo número; o report separa pelo título' },
+      { campo: 'Data real depois da exportação', derivado: true, itens: ds.filter((d) => REAIS.some(([k]) => d[k] && dia(d[k]) > c)), base: null, efeito: 'data real no futuro é plano copiado no campo real; fica fora do prazo planejado × real' },
       { campo: 'Fase × data real', derivado: true, itens: incoerentes, base: null, efeito: 'tem data real de uma etapa que a fase ainda não alcançou: a fase ficou para trás' },
     ].filter((x) => x.itens.length);
 
@@ -804,7 +812,7 @@ details.hist li + li { margin-top: 8px; }
     };
   }
 
-  globalThis.Esteira = { lerXlsx, normalizar, analisar, ETAPAS, ESTAGIOS, CAMPOS, dia };
+  globalThis.Esteira = { lerXlsx, normalizar, analisar, ETAPAS, ESTAGIOS, CAMPOS, dia, faseTipo, FUSO };
 })();
 </script>
 
@@ -830,7 +838,7 @@ details.hist li + li { margin-top: 8px; }
 
   const ST = {
     atrasada: ['▲', 'Atrasada', 'critical'], vence: ['◐', 'Vence em 7 dias', 'at-risk'], noprazo: ['●', 'No prazo', 'on-track'],
-    semdata: ['—', 'Sem data', 'no-data'], semcab: ['—', 'Sem CAB', 'no-data'], bloqueada: ['❙❙', 'Bloqueada', 'delayed'],
+    semdata: ['—', 'Sem data', 'no-data'], semcab: ['—', 'Sem CAB', 'no-data'], aguardando: ['○', 'Aguardando planejamento', 'no-data'], bloqueada: ['❙❙', 'Bloqueada', 'delayed'],
     concluida: ['▣', 'Concluída', 'on-hold'], cancelada: ['✕', 'Cancelada', 'on-hold'],
   };
   const stTag = (st, extra) => `<span class="st st-${ST[st][2]}"><i aria-hidden="true">${ST[st][0]}</i> ${ST[st][1]}${extra ? ` <em>· ${esc(extra)}</em>` : ''}</span>`;
@@ -838,11 +846,12 @@ details.hist li + li { margin-top: 8px; }
     if (d.prazo) return `${d.marco} ${dt(d.prazo)} · ${rel(d.dias)}`;
     if (d.st === 'semcab') return d.p_pronto ? `pronto planejado ${dt(d.p_pronto)}` : 'sem data de pronto';
     if (d.st === 'semdata') return `sem data de ${d.marco.toLowerCase()}`;
+    if (d.st === 'aguardando') return 'Pré Projeto: sem data de início';
     if (d.st === 'concluida') return d.r_concluido ? `concluída ${dt(d.r_concluido)}` : d.cab ? `CAB ${dt(d.cab)}` : '';
     return '';
   };
   const COR_ESTAGIO = { iniciacao: 'var(--e1)', planejamento: 'var(--e2)', execucao: 'var(--e3)', encerramento: 'var(--e4)', concluido: 'var(--e5)', fora: 'var(--e-fora)' };
-  const COR_ST = { atrasada: 'var(--critical-bg)', vence: 'var(--at-risk)', noprazo: 'var(--on-track)', semdata: 'var(--no-data)', semcab: 'var(--no-data)', bloqueada: 'var(--delayed)' };
+  const COR_ST = { atrasada: 'var(--critical-bg)', vence: 'var(--at-risk)', noprazo: 'var(--on-track)', semdata: 'var(--no-data)', semcab: 'var(--no-data)', aguardando: 'var(--border-input)', bloqueada: 'var(--delayed)' };
   const barra = (segs, rotulo, cls = '') => `<div class="bar ${cls}" role="img" aria-label="${esc(rotulo)}">${segs.filter((s) => s.n > 0)
     .map((s) => `<span style="flex:${s.n} 1 0;background:${s.cor}" data-tip="${esc(s.tip)}"></span>`).join('')}</div>`;
   const progresso = (a, b, cor = 'var(--grad-bar)') => `<div class="bar" role="img" aria-label="${pct(a, b)}%"><span style="width:${b ? (100 * a) / b : 0}%;background:${cor}"></span></div>`;
@@ -916,7 +925,7 @@ details.hist li + li { margin-top: 8px; }
     const conc = m.concl.length;
     $('#fora').innerHTML = [
       conc && `<button type="button" class="fim" data-ir-st="concluida">▣ <b>${num(conc)}</b> ${conc === 1 ? 'concluída' : 'concluídas'} · ${hh(m.horas.concl)} · saíram do fluxo</button>`,
-      fora.length && `<span>Fora do fluxo:</span>${fora.map(([f, n]) => `<span>${/bloque/i.test(f) ? '❙❙' : /cancel/i.test(f) ? '✕' : '·'} <b>${num(n)}</b> ${esc(f)}</span>`).join('')}`,
+      fora.length && `<span class="grupo-fora"><span>Fora do fluxo:</span>${fora.map(([f, n]) => `<span>${/bloque/i.test(f) ? '❙❙' : /cancel/i.test(f) ? '✕' : '·'} <b>${num(n)}</b> ${esc(f)}</span>`).join('')}</span>`,
     ].filter(Boolean).join('<span class="sep" aria-hidden="true"></span>');
     $('#fora').hidden = !conc && !fora.length;
   }
@@ -928,10 +937,10 @@ details.hist li + li { margin-top: 8px; }
       return;
     }
     const D = m.delta;
-    const ROT = { concluida: ['concluída', 'concluídas'], fase: ['mudou de fase', 'mudaram de fase'], replan: ['data replanejada', 'datas replanejadas'], atrasou: ['passou a atrasar', 'passaram a atrasar'], nova: ['nova na lista', 'novas na lista'], saiu: ['saiu da lista', 'saíram da lista'] };
-    const ordem = ['concluida', 'fase', 'replan', 'atrasou', 'nova', 'saiu'];
+    const ROT = { concluida: ['concluída', 'concluídas'], fase: ['mudou de fase', 'mudaram de fase'], subfase: ['mudou de subfase', 'mudaram de subfase'], replan: ['data replanejada', 'datas replanejadas'], atrasou: ['passou a atrasar', 'passaram a atrasar'], nova: ['nova na lista', 'novas na lista'], saiu: ['saiu da lista', 'saíram da lista'] };
+    const ordem = ['concluida', 'fase', 'subfase', 'replan', 'atrasou', 'nova', 'saiu'];
     const txt = (x) => ({
-      nova: `entrou na lista · ${esc(x.d.fase)}`, saiu: 'saiu da lista', concluida: `${esc(x.de)} → Concluído`, fase: `${esc(x.de)} → ${esc(x.para)}`,
+      nova: `entrou na lista · ${esc(x.d.fase)}`, saiu: 'saiu da lista', concluida: `${esc(x.de)} → Concluído`, fase: `${esc(x.de)} → ${esc(x.para)}`, subfase: `${esc(x.de)} → ${esc(x.para)} <em class="muted">(mesma fase na lista)</em>`,
       replan: `${esc(x.nome)}: ${dt(x.de)} → ${dt(x.para)} <em class="muted">(${x.dias > 0 ? '+' : ''}${x.dias} d)</em>`,
       atrasou: `passou da data · ${esc(x.d.marco)} ${dt(x.d.prazo)}`,
     }[x.tipo]);
@@ -948,7 +957,7 @@ details.hist li + li { margin-top: 8px; }
     const pr = m.etapas.filter((e) => ['prepfinal', 'implantacao', 'encerramento'].includes(e.k));
     const [prep, impl, enc] = pr.map((e) => e.n);
     const ab = m.abertas.length;
-    const ordemSt = ['atrasada', 'vence', 'noprazo', 'semdata', 'semcab', 'bloqueada'];
+    const ordemSt = ['atrasada', 'vence', 'noprazo', 'semdata', 'semcab', 'aguardando', 'bloqueada'];
     const p = m.piAtual;
     const cards = [
       `<div class="card kpi"><span class="rot">Em produção</span><div class="val"><b>${num(conc)}</b><span>de ${num(validas)} · ${pct(conc, validas)}%</span></div>${progresso(conc, validas)}<span class="meta">${hh(m.horas.concl)} estimadas já entregues${m.st.cancelada ? ` · ${pl(m.st.cancelada, 'cancelada fica', 'canceladas ficam')} fora da conta` : ''}</span></div>`,
@@ -983,7 +992,7 @@ details.hist li + li { margin-top: 8px; }
       <span class="val"><b>${pct(a.ok, a.n)}%</b> <span class="muted">${num(a.ok)} de ${num(a.n)}</span></span>
       <span class="sub">${a.n - a.ok ? `<span class="st-critical">▲ ${num(a.n - a.ok)} depois da data</span> · média de ${num(Math.round(a.atrasoMedio * 10) / 10)} dias` : 'todas no prazo'} · ${pis.filter((p) => a.porPI[p]).map((p) => `${esc(p)} ${a.porPI[p].ok}/${a.porPI[p].n}`).join(' · ')}</span></div>`).join('')}</div>`
       : '<div class="card-p nota">Nenhuma demanda tem data planejada e real da mesma fase.</div>'}
-      <p class="nota nota-pe">Só entram demandas com as duas datas preenchidas na fase; no prazo é real ≤ planejado. ${m.aderencia.map((a) => `${esc(a.nome)}: ${num(a.n)}`).join(' · ')} medições.</p></div>`;
+      <p class="nota nota-pe">Só entram demandas com as duas datas preenchidas na fase e a real até o corte; no prazo é real ≤ planejado. ${m.aderencia.map((a) => `${esc(a.nome)}: ${num(a.n)}`).join(' · ')} medições.</p></div>`;
   }
 
   function renderProximas(m) {
@@ -1064,12 +1073,13 @@ details.hist li + li { margin-top: 8px; }
   }
 
   // ---------- todas as demandas ----------
-  const ORDEM_ST = ['atrasada', 'bloqueada', 'vence', 'semcab', 'semdata', 'noprazo', 'concluida', 'cancelada'];
-  const FILTROS_ST = [['abertas', 'Abertas'], ['atrasada', 'Atrasadas'], ['vence', 'Vencem em 7 dias'], ['noprazo', 'No prazo'], ['semdata', 'Sem data'], ['semcab', 'Sem CAB'], ['bloqueada', 'Bloqueadas'], ['concluida', 'Concluídas'], ['cancelada', 'Canceladas'], ['todas', 'Todas']];
+  const ORDEM_ST = ['atrasada', 'bloqueada', 'vence', 'semcab', 'semdata', 'aguardando', 'noprazo', 'concluida', 'cancelada'];
+  const FILTROS_ST = [['abertas', 'Abertas'], ['atrasada', 'Atrasadas'], ['vence', 'Vencem em 7 dias'], ['noprazo', 'No prazo'], ['semdata', 'Sem data'], ['semcab', 'Sem CAB'], ['aguardando', 'Aguardando planejamento'], ['bloqueada', 'Bloqueadas'], ['concluida', 'Concluídas'], ['cancelada', 'Canceladas'], ['todas', 'Todas']];
   const passaSt = (d, k) => (k === 'todas' ? true : k === 'abertas' ? d.st !== 'concluida' && d.st !== 'cancelada' : d.st === k);
 
   function renderTodas(m) {
     const f = estado.filtro;
+    document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.etapa === f.etapa)));
     const pis = m.pis.map((p) => p.pi);
     const areas = m.areas.map((a) => a.area);
     $('#secTodas').innerHTML = secH('Todas as demandas', 'clique numa linha para ver datas, pessoas e histórico') + `<div class="card"><div class="filtros" role="group" aria-label="Filtros">
@@ -1104,8 +1114,9 @@ details.hist li + li { margin-top: 8px; }
     const hist = [['Construção', 'rq_construcao', 'rh_construcao'], ['Homologação', 'rq_homologacao', 'rh_homologacao'], ['Encerramento', 'rq_concluido', 'rh_concluido']].filter(([, q, h]) => d[q] || d[h]);
     return `<div class="det-grid">
       <div><h4>Marcos</h4><table class="marcos"><thead><tr><th></th><th>Planejado</th><th>Real</th><th></th></tr></thead><tbody>${marcos.map(([rot, p, r]) => {
-        const dif = p && r && d[p] && d[r] ? E.dia(d[r]) - E.dia(d[p]) : null;
-        return `<tr><th>${rot}</th><td>${p ? dt(d[p]) : ''}</td><td>${r ? dt(d[r]) : ''}</td><td>${dif == null ? '' : dif > 0 ? `<span class="st-critical">+${dif} d</span>` : `<span class="st-on-track">${dif} d</span>`}</td></tr>`;
+        const futura = r && d[r] && d[r] > estado.modelo.corte;
+        const dif = p && r && d[p] && d[r] && !futura ? E.dia(d[r]) - E.dia(d[p]) : null;
+        return `<tr><th>${rot}</th><td>${p ? dt(d[p]) : ''}</td><td>${r ? dt(d[r]) : ''}${futura ? ' <span class="muted">· depois do corte</span>' : ''}</td><td>${dif == null ? '' : dif > 0 ? `<span class="st-critical">+${dif} d</span>` : `<span class="st-on-track">${dif} d</span>`}</td></tr>`;
       }).join('')}</tbody></table></div>
       <div><h4>Demanda</h4><dl>${lin('Fase', d.fase)}${lin('Área', d.area)}${lin('Frente', d.frente)}${lin('Funcional', d.funcional)}${lin('ABAP', d.abap)}${lin('Resp. Acelen', d.respAcelen)}${lin('Classificação', d.classe)}${lin('Tamanho', d.tamanho)}
         ${lin('Horas', d.horas != null ? `${num(d.horas)} h${d.horasFunc != null || d.horasAbap != null ? ` (funcional ${num(d.horasFunc ?? 0)} · ABAP ${num(d.horasAbap ?? 0)})` : ''}` : null)}${lin('PI', [d.piPlan, d.piEntregue && d.piEntregue !== d.piPlan ? `entregue no ${d.piEntregue}` : ''].filter(Boolean).join(' · '))}
@@ -1120,11 +1131,11 @@ details.hist li + li { margin-top: 8px; }
     const s = m.snap;
     const quando = new Date(s.exportadoEm);
     $('#secMetodo').innerHTML = secH('Como os números são calculados') + `<div class="card"><div class="metodo">
-      <p><b>Fonte.</b> ${esc(s.arquivo || 'exportação')} · ${pl(s.total, 'linha', 'linhas')} · exportada em ${dt(s.corte, true)}, ${quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}${s.autor ? ` por ${esc(s.autor)}` : ''}. ${s.colunasAusentes.length ? `Colunas ausentes no arquivo: ${s.colunasAusentes.map(esc).join(', ')}.` : 'Todas as colunas esperadas estão no arquivo.'}</p>
+      <p><b>Fonte.</b> ${esc(s.arquivo || 'exportação')} · ${pl(s.total, 'linha', 'linhas')} · exportada em ${dt(s.corte, true)}, ${quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: E.FUSO })} (Brasília)${s.autor ? ` por ${esc(s.autor)}` : ''}. ${s.colunasAusentes.length ? `Colunas ausentes no arquivo: ${s.colunasAusentes.map(esc).join(', ')}.` : 'Todas as colunas esperadas estão no arquivo.'}</p>
       <p><b>Data de corte.</b> A data em que a planilha foi exportada (${dt(s.corte, true)}), não a data de hoje. Todo “passou da data” e “vence em 7 dias” é contado a partir dela.</p>
       <p><b>Prazo da demanda aberta.</b> A data planejada que encerra a fase atual: Backlog → Data de Início; Em Refinamento → Data de Entrega Refinamento; Em Construção → Data de Entrega Construção; Em Homologação → Data de Entrega Homologação; Pronto/Em Encerramento → Data CAB. Sem essa data, a demanda fica “sem data” e não entra na conta de atraso.</p>
-      <p><b>Fluxo Macro dos Projetos.</b> ${[...new Set(E.ETAPAS.map((e) => e.grupo))].map((g) => `${esc(g)}: ${E.ETAPAS.filter((e) => e.grupo === g).map((e) => `${esc(e.nome)} ← ${esc(e.fonte)}`).join('; ')}`).join('. ')}. Backlog se divide pela Data de Início (sem data ou com data); Pronto/Em Encerramento, pela Data CAB (sem data, futura ou já passada). Concluídas saíram do fluxo; bloqueadas e canceladas ficam fora dele.</p>
-      <p><b>Prazo planejado × real.</b> Real ≤ planejado nas datas de Refinamento, Construção, Homologação e Pronto. Só entram demandas com as duas datas preenchidas.</p>
+      <p><b>Fluxo Macro dos Projetos.</b> ${[...new Set(E.ETAPAS.map((e) => e.grupo))].map((g) => `${esc(g)}: ${E.ETAPAS.filter((e) => e.grupo === g).map((e) => `${esc(e.nome)} ← ${esc(e.fonte)}`).join('; ')}`).join('. ')}. Backlog se divide pela Data de Início (sem data ou com data); Pronto/Em Encerramento, pela Data CAB (sem data, futura ou já passada). Backlog sem Data de Início fica “aguardando planejamento”: em Pré Projeto a falta da data é esperada, então não conta como lacuna. Concluídas saíram do fluxo; bloqueadas, canceladas e fases que o report não reconhece ficam fora dele (e o confere.mjs reprova a fase desconhecida).</p>
+      <p><b>Prazo planejado × real.</b> Real ≤ planejado nas datas de Refinamento, Construção, Homologação e Pronto. Só entram demandas com as duas datas preenchidas e com a data real até o corte: data real no futuro é plano copiado no campo real.</p>
       <p><b>PI.</b> PI Planning. Concluída no próprio PI: PI Entregue igual ao PI Planning. Carry-over: PI Entregue posterior. Horas: QtdHoras (estimativa).</p>
       <p><b>Pessoas.</b> Funcional e ABAP vêm no formato do SharePoint (nome;#id); fica o nome. Demanda com mais de uma pessoa conta para cada uma.</p>
       <p><b>Comparação.</b> Cada exportação carregada fica guardada com a data de corte. A seção de mudanças compara a exportação aberta com a anterior, demanda a demanda, pelo NumeroDemanda (e pelo título, quando o número se repete).</p>
