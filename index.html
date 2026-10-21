@@ -168,8 +168,10 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 section.fechada .dobra i { transform: rotate(-90deg); }
 section.fechada:has(> .sec-h) > :not(.sec-h) { display: none !important; }
 section.fechada > .sec-h { margin-bottom: 0; padding-bottom: 4px; }
-.bloco { font-size: 12px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--link); padding-top: 10px; border-top: 2px solid var(--border); margin-bottom: -10px; scroll-margin-top: 124px; }
-section, h2[id] { scroll-margin-top: 132px; }
+.bloco { font-size: 12px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--link); padding-top: 10px; border-top: 2px solid var(--border); margin-bottom: -10px; }
+.bloco { scroll-margin-top: 124px; }
+section, h2[id] { scroll-margin-top: 132px; } /* âncoras param abaixo do menu fixo */
+html { overflow-anchor: none; } /* ao abrir e fechar tudo, quem mantém a posição é a página */
 section { min-width: 0; }
 .sec-h { display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .sec-h h2 { font-size: 17px; font-weight: 600; }
@@ -1376,14 +1378,23 @@ details.hist li + li { margin-top: 8px; }
     ].join('') + '<span class="dobras"><button type="button" data-dobras="abrir">Abrir tudo</button><button type="button" data-dobras="fechar">Fechar tudo</button></span>';
     marcarMenu();
   }
-  // o botão do bloco que está na tela fica marcado
+  // o botão do bloco que está na tela fica marcado. No fim da página o último bloco não sobe até o
+  // topo: aí vale o último botão clicado, se o bloco dele estiver na tela.
+  let ultimoMenu = '';
   function marcarMenu() {
     const tiles = [...document.querySelectorAll('#menu .tile')];
     if (!tiles.length) return;
+    const topo = (a) => { const el = document.querySelector(a.getAttribute('href')); return el ? el.getBoundingClientRect().top : Infinity; };
     let atual = tiles[0];
-    tiles.forEach((a) => { const el = document.querySelector(a.getAttribute('href')); if (el && el.getBoundingClientRect().top < 170) atual = a; });
+    tiles.forEach((a) => { if (topo(a) < 170) atual = a; });
+    if (scrollY + innerHeight >= document.documentElement.scrollHeight - 2) {
+      const clicado = tiles.find((a) => a.getAttribute('href') === ultimoMenu);
+      if (clicado && topo(clicado) < innerHeight) atual = clicado;
+    }
     tiles.forEach((a) => a.setAttribute('aria-current', String(a === atual)));
   }
+  // cada botão do menu abre a seção de onde vem o seu número (decisão do Ricardo)
+  const SECAO_DO_MENU = { '#secFiltro': 'secKpi', '#esta-semana': 'secAcao', '#andamento': 'secPrazo', '#cadastro': 'secDado', '#todas': 'secTodas' };
 
   // ---------- seções recolhíveis ----------
   // O título vira botão; a seção fechada mostra só o título e o resumo ao lado. Fechar e abrir fica
@@ -1399,7 +1410,10 @@ details.hist li + li { margin-top: 8px; }
     sec.classList.toggle('fechada', fechar);
     const b = sec.querySelector('.dobra');
     if (b) b.setAttribute('aria-expanded', String(!fechar));
+    marcarMenu();
   }
+  // abrir por um caminho (código, filtro, menu) também fica guardado, como abrir pelo título
+  const abrirSecao = (id) => { dobrar(document.getElementById(id), false); guardarFechadas(); };
 
   // ---------- leitura da semana: frases de modelo fixo, preenchidas por regra ----------
   const NA = { Refinamento: 'no refinamento', Construção: 'na construção', Homologação: 'na homologação', Pronto: 'no pronto' };
@@ -1960,7 +1974,7 @@ details.hist li + li { margin-top: 8px; }
       <p><b>Riscos.</b> Crítico: mais de ${m.LIM.dias} dias além do prazo da fase (nas prontas sem CAB, contado do pronto planejado), ou bloqueada sem data de pronto, estimativa nem status report. Atenção: demanda acima de ${m.LIM.horas} h com prazo em até ${m.LIM.perto} dias ou pronta sem CAB; ${m.LIM.uatDia} ou mais homologações no mesmo dia para o mesmo responsável Acelen; pessoa-chave (${Math.round(m.LIM.fatia * 100)}% ou mais das abertas do papel e, além disso, ${m.LIM.areas} áreas ou mais — não vale para responsável Acelen, que por desenho responde por uma área —, um terço ou mais das atrasadas ou pico acima de ${m.LIM.cargaDia} h por dia útil; com filtro, medida na esteira toda); regra de avanço do PI ${m.regra.desdePI} em diante (data real da fase anterior em toda demanda que saiu do Backlog; horas, tamanho e Nº do Charm a partir da construção). Info: abertas sem data na fase atual.</p>
       <p><b>Farol</b> (Todas as demandas e planilha). Atrasado: a data que encerra a fase passou (inclusive com a data real lançada e a fase por atualizar, ou a CAB vencida) ou a demanda está bloqueada. Atenção: vence em até 7 dias ou está sem data na fase atual, Pré Projeto incluído. No prazo: os demais casos e as concluídas. Conclusão fase atual: a data planejada que encerra a fase; na concluída, a Data de Entrega Pronto planejada. Baseline: Sprint Baseline Pronto/Em Encerramento.</p>
       <p><b>Planilha.</b> “Baixar planilha” em Todas as demandas leva as linhas do filtro da tabela (e do filtro do topo), em CSV com ponto e vírgula e datas dd/mm/aaaa. As dez primeiras colunas são as da tabela; depois vêm marco e dias até a conclusão, subfase, situação e motivo, Sprint real, Funcional, ABAP, status report e as lacunas de cadastro de cada demanda.</p>
-      <p><b>Navegação.</b> O menu de cima leva a cada bloco e mostra o número que o resume. Cada seção abre e fecha pelo título; na primeira visita todas começam fechadas, mostrando só o título e o resumo ao lado, e depois voltam como cada pessoa deixou neste navegador.</p>
+      <p><b>Navegação.</b> O menu de cima leva a cada bloco, mostra o número que o resume e abre a seção de onde ele vem. Cada seção abre e fecha pelo título; na primeira visita todas começam fechadas, mostrando só o título e o resumo ao lado, e depois voltam como cada pessoa deixou neste navegador.</p>
       <p><b>Comparação.</b> Cada exportação carregada fica guardada com a data de corte. A seção de mudanças compara a exportação aberta com a anterior, demanda a demanda, pelo NumeroDemanda (e pelo título, quando o número se repete).</p>
     </div></div>`;
   }
@@ -2195,7 +2209,7 @@ details.hist li + li { margin-top: 8px; }
   }
 
   function abrirDemanda(chave) {
-    dobrar($('#secTodas'), false);
+    abrirSecao('secTodas');
     estado.filtro = { st: 'todas', pi: '', area: '', etapa: '', q: '', lacuna: '' };
     estado.abertas.add(chave);
     renderTodas(estado.modelo);
@@ -2204,7 +2218,7 @@ details.hist li + li { margin-top: 8px; }
     else if (temGeral()) mostrarMsg(`A demanda ${chave.split('~')[0]} está fora do filtro do topo: limpe o filtro para vê-la na tabela.`);
   }
   function irParaTabela() {
-    dobrar($('#secTodas'), false);
+    abrirSecao('secTodas');
     renderTodas(estado.modelo);
     $('#secTodas').scrollIntoView({ behavior: 'smooth', block: 'start' });
     $('#todas').focus({ preventScroll: true });
@@ -2221,8 +2235,17 @@ details.hist li + li { margin-top: 8px; }
     const dob = t.closest('.dobra');
     if (dob) { const sec = dob.closest('section'); dobrar(sec, !sec.classList.contains('fechada')); guardarFechadas(); return; }
     const todasDob = t.closest('[data-dobras]');
-    if (todasDob) { document.querySelectorAll('section.dobravel').forEach((x) => dobrar(x, todasDob.dataset.dobras === 'fechar')); guardarFechadas(); return; }
-    if (t.closest('.tile[href="#todas"]')) dobrar($('#secTodas'), false);
+    if (todasDob) {
+      const marcado = document.querySelector('#menu .tile[aria-current="true"]');
+      const ancora = marcado && document.querySelector(marcado.getAttribute('href'));
+      const antes = ancora ? ancora.getBoundingClientRect().top : 0;
+      document.querySelectorAll('section.dobravel').forEach((x) => dobrar(x, todasDob.dataset.dobras === 'fechar'));
+      if (ancora) scrollBy(0, ancora.getBoundingClientRect().top - antes);
+      guardarFechadas(); marcarMenu();
+      return;
+    }
+    const tl = t.closest('#menu .tile');
+    if (tl) { ultimoMenu = tl.getAttribute('href'); if (SECAO_DO_MENU[ultimoMenu]) abrirSecao(SECAO_DO_MENU[ultimoMenu]); }
     const irSt = t.closest('[data-ir-st]');
     if (irSt) { estado.filtro = { st: irSt.dataset.irSt, pi: '', area: '', etapa: '', q: '', lacuna: '' }; document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', 'false')); irParaTabela(); return; }
     const abrir = t.closest('[data-abrir]');
@@ -2300,6 +2323,15 @@ details.hist li + li { margin-top: 8px; }
   document.querySelectorAll('section.dobravel').forEach((x) => { if (!Array.isArray(salvas) || salvas.includes(x.id)) x.classList.add('fechada'); });
   const obsDobra = new MutationObserver((ms) => ms.forEach((x) => prepararDobra(x.target)));
   document.querySelectorAll('section.dobravel').forEach((x) => obsDobra.observe(x, { childList: true }));
+  // foco do teclado que cai atrás do menu fixo (ao voltar com Shift+Tab) desce até aparecer
+  document.addEventListener('focusin', (e) => {
+    if (!e.target.closest || !e.target.closest('main')) return;
+    requestAnimationFrame(() => {
+      const r = e.target.getBoundingClientRect();
+      const fim = $('#indice').getBoundingClientRect().bottom;
+      if (r.top < fim && r.bottom > 0) scrollBy(0, r.top - fim - 12);
+    });
+  });
   let menuPendente = false;
   addEventListener('scroll', () => { if (menuPendente) return; menuPendente = true; requestAnimationFrame(() => { menuPendente = false; marcarMenu(); }); }, { passive: true });
 
