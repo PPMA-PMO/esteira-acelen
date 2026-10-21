@@ -5,6 +5,7 @@
 //   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-subfase  põe uma demanda na subfase errada e PRECISA reprovar
 //   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-calculo  estraga uma conta de carga e PRECISA reprovar
 //   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-leitura  estraga a cobertura do prazo e o pedido da semana e PRECISA reprovar
+//   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-riscos  estraga as próximas 6 semanas, um risco e a regra do PI 4 e PRECISA reprovar
 //   ... --ponto=2026-09-28:95   medição anterior de prontas ou concluídas, para imprimir o ritmo e a previsão
 //
 // Roda o mesmo código que a página roda; nada de reimplementar a regra aqui. O que se confere
@@ -31,6 +32,7 @@ const snap = E.normalizar(await E.lerXlsx(buf.buffer.slice(buf.byteOffset, buf.b
 if (modo === '--controle') snap.demandas[0].fase = 'Fase que não existe';
 const m = E.analisar(snap, null, pontos);
 if (modo === '--controle-calculo') m.cargas.abap.find((o) => o.pico).pico.horas += 10;
+if (modo === '--controle-riscos') { m.proximas.pop(); m.riscos.find((r) => r.k === 'atraso').itens.pop(); m.regra.cumprem++; }
 if (modo === '--controle-leitura') { Object.values(m.aderencia[2].porPI)[0].base++; m.leitura.pedido = m.acao.at(-1); }
 if (modo === '--controle-subfase') {
   const d = m.ds.find((x) => x.etapa);
@@ -115,6 +117,43 @@ confere(L.fila.antes.n === m.ds.filter((d) => ['refinamento', 'construcao', 'hom
 const horasDe = (g) => g.itens.reduce((s, d) => s + (d.horas || 0), 0);
 const elegiveis = m.acao.filter((g) => g.k !== 'vence' && g.itens.length >= 3);
 confere((L.pedido?.k ?? null) === (elegiveis.length ? elegiveis.reduce((a, b) => (horasDe(b) > horasDe(a) || (horasDe(b) === horasDe(a) && b.itens.length > a.itens.length) ? b : a)).k : null), `leitura: pedido ${L.pedido?.k}, esperado o grupo com mais horas`);
+// - próximas 6 semanas, pela regra escrita sobre os campos crus: aberta, não bloqueada, com fim de fase
+//   (Backlog, Refinamento, Construção) ou CAB entre 0 e 42 dias, ou na agenda de homologação;
+const em42 = (iso) => iso && E.dia(iso) - c >= 0 && E.dia(iso) - c <= 42;
+const PRAZO_FASE = { backlog: 'p_inicio', refinamento: 'p_refinamento', construcao: 'p_construcao' };
+const naAgenda = new Set(m.uat.grupos.flatMap((g) => g.itens.map((x) => x.d.chave)));
+const esperadas = m.ds.filter((d) => !['concluido', 'cancelada', 'bloqueado', 'outra'].includes(E.faseTipo(d.fase))
+  && (em42(d[PRAZO_FASE[E.faseTipo(d.fase)]]) || em42(d.cab) || naAgenda.has(d.chave))).map((d) => d.chave).sort();
+confere(JSON.stringify(m.proximas.map((x) => x.d.chave).sort()) === JSON.stringify(esperadas), `próximas 6 semanas: ${m.proximas.length} linhas, a regra dá ${esperadas.length}`);
+// - riscos: mais de 30 dias além do prazo (prontas sem CAB contam do pronto planejado) e bloqueada sem nada;
+const abertasC = m.ds.filter((d) => !['concluido', 'cancelada', 'outra'].includes(E.faseTipo(d.fase)));
+const PRAZO_TODOS = { ...PRAZO_FASE, homologacao: 'p_homologacao', pronto: 'cab' };
+const atraso = (d) => { const t = E.faseTipo(d.fase); const p = d[PRAZO_TODOS[t]]; return p ? c - E.dia(p) : t === 'pronto' && d.p_pronto ? c - E.dia(d.p_pronto) : null; };
+const risco = (k) => (m.riscos.find((r) => r.k === k) || { itens: [] }).itens;
+const ids = (xs) => JSON.stringify(xs.map((x) => String(x.id ?? x.d?.id ?? x.nome)).sort());
+confere(ids(risco('atraso')) === ids(abertasC.filter((d) => atraso(d) > m.LIM.dias)), `riscos: mais de ${m.LIM.dias} dias fora da regra`);
+confere(ids(risco('bloqueada')) === ids(abertasC.filter((d) => E.faseTipo(d.fase) === 'bloqueado' && !d.p_pronto && d.horas == null && !d.statusReport)), 'riscos: bloqueadas sem nada fora da regra');
+// - pessoa-chave: 20% ou mais das abertas do papel e (3 áreas fora resp. Acelen, um terço das atrasadas, pico > 8 h);
+const atrasadas = m.st.atrasada || 0;
+const chaves = ['respAcelen', 'funcional', 'abap'].flatMap((papel) => {
+  const com = abertasC.filter((d) => [].concat(d[papel] || []).length);
+  const nomes = [...new Set(com.flatMap((d) => [].concat(d[papel])))];
+  return nomes.filter((nome) => {
+    const ds = com.filter((d) => [].concat(d[papel]).includes(nome));
+    if (ds.length < m.LIM.fatia * com.length) return false;
+    const atr = m.ds.filter((d) => d.st === 'atrasada' && [].concat(d[papel] || []).includes(nome)).length;
+    const pico = papel === 'respAcelen' ? null : (m.cargas[papel].find((o) => o.nome === nome) || {}).porDia;
+    return (papel !== 'respAcelen' && new Set(ds.map((d) => d.area || 'Sem área')).size >= m.LIM.areas) || (atrasadas && 3 * atr >= atrasadas) || pico > m.LIM.cargaDia;
+  }).map((nome) => `${papel}:${nome}`);
+}).sort();
+confere(JSON.stringify(m.pessoasChave.map((x) => `${x.papel}:${x.nome}`).sort()) === JSON.stringify(chaves), `pessoa-chave: ${m.pessoasChave.map((x) => x.nome).join(', ')}; a regra dá ${chaves.join(', ')}`);
+// - regra de avanço do PI 4 em diante: data real da fase anterior para toda que saiu do Backlog; horas,
+//   tamanho e Charm a partir da construção.
+const ANTERIOR = { refinamento: 'r_inicio', construcao: 'r_refinamento', homologacao: 'r_construcao', pronto: 'r_homologacao', concluido: 'r_pronto' };
+const av = m.ds.filter((d) => Number((/\d+/.exec(d.piPlan || '') || [])[0]) >= 4 && ANTERIOR[E.faseTipo(d.fase)]);
+const cumpre = (d) => { const t = E.faseTipo(d.fase); const r = d[ANTERIOR[t]]; const campos = ['construcao', 'homologacao', 'pronto', 'concluido'].includes(t);
+  return r && E.dia(r) <= c && (!campos || (d.horas != null && d.tamanho && d.charm != null)); };
+confere(m.regra.n === av.length && m.regra.cumprem === av.filter(cumpre).length, `regra do PI 4: ${m.regra.cumprem} de ${m.regra.n}, a regra dá ${av.filter(cumpre).length} de ${av.length}`);
 // - tempo de entrega: nenhuma duração negativa e mediana ≤ 85% ≤ máximo.
 if (m.lead.n) confere(m.lead.mediana >= 0 && (m.lead.p85 == null || (m.lead.mediana <= m.lead.p85 && m.lead.p85 <= m.lead.maximo)), 'tempo de entrega: mediana, 85% e máximo fora de ordem');
 
@@ -124,6 +163,9 @@ console.log('etapas  ', Object.fromEntries(m.etapas.map((e) => [e.k, e.n])), 'fo
 console.log('horas   ', m.horas);
 console.log('PIs     ', m.pis.map((p) => `${p.pi}: ${p.n} (${p.concl} concl., ${p.proprio} no próprio PI, ciclo ${p.ciclo})`).join(' | '));
 console.log('aderência', m.aderencia.map((a) => `${a.nome} ${a.ok}/${a.n} de ${a.base} (${Object.entries(a.porPI).map(([k, o]) => `${k} ${o.n}/${o.base}`).join(' ')})`).join(' | '));
+console.log('próximas', `${m.proximas.length} demandas em 6 semanas`);
+console.log('riscos  ', m.riscos.map((r) => `${r.k} ${r.itens.length}`).join(' | '), '· pessoa-chave', m.pessoasChave.map((x) => `${x.nome} (${x.papel}: ${x.motivos.join('+')})`).join(', '));
+console.log('regra   ', `PI ${m.regra.desdePI}+: cumprem ${m.regra.cumprem} de ${m.regra.n} · ${Object.entries(m.regra.conta).map(([k, n]) => `${k} ${n}`).join(' · ')}`);
 console.log('leitura ', `fila ${L.fila.antes.n} (${L.fila.antes.horas} h) antes do pronto × ${L.fila.ultima.n} (${L.fila.ultima.horas} h) na última milha · prazo pior ${L.prazo?.pior.nome} melhor ${L.prazo?.melhor.nome} · pedido ${L.pedido?.k} ${L.pedido?.itens.length} (${L.pedido?.horas} h)`);
 console.log('ação    ', m.acao.map((g) => `${g.k} ${g.itens.length}`).join(' | '));
 console.log('cadastro', m.cadastro.map((c) => `${c.campo} ${c.itens.length}`).join(' | '));
