@@ -394,7 +394,7 @@ details.hist li + li { margin-top: 8px; }
         <span><span class="lk-name">avvale</span><span class="lk-sig">Project portfolio</span></span>
       </div>
       <div class="topo-acts">
-        <span class="versao" id="versao" title="Versão do report">versão 6.1</span>
+        <span class="versao" id="versao" title="Versão do report">versão 6.2</span>
         <label class="sel-exp" id="selExpRot" hidden>Exportação <select id="selExp"></select></label>
       </div>
     </div>
@@ -1246,7 +1246,7 @@ details.hist li + li { margin-top: 8px; }
 
   const estado = {
     db: null, podeGravar: null, exportacoes: [], cache: new Map(), selecionada: null, modelo: null,
-    filtro: { st: 'abertas', pi: '', area: '', etapa: '', q: '', lacuna: '' }, todasAberta: false, abertas: new Set(), pessoas: 'respAcelen', carga: 'abap', referencias: [],
+    filtro: { st: 'todas', pi: '', area: '', etapa: '', q: '', lacuna: '' }, abertas: new Set(), pessoas: 'respAcelen', carga: 'abap', referencias: [],
     geral: { area: '', pi: '', sprint: '', fase: '' }, base: null, modeloArea: null, downloads: null, vez: 0,
   };
 
@@ -1765,7 +1765,7 @@ details.hist li + li { margin-top: 8px; }
     document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.etapa === f.etapa)));
     const pis = m.pis.map((p) => p.pi);
     const areas = m.areas.map((a) => a.area);
-    $('#secTodas').innerHTML = `<div class="sec-h"><h2 id="todas" tabindex="-1">Todas as demandas</h2><span class="meta">clique numa linha para ver datas, pessoas e histórico</span><span class="dir"><button type="button" class="btn btn-out btn-sm" data-baixar${podeBaixar() ? '' : ' hidden'}>Baixar planilha (.csv)</button></span></div><div class="card"><div class="filtros" role="group" aria-label="Filtros">
+    $('#secTodas').innerHTML = `<div class="sec-h"><h2 id="todas" tabindex="-1">Todas as demandas</h2><span class="meta">em ordem de código · clique numa linha para ver datas, pessoas e histórico</span><span class="dir"><button type="button" class="btn btn-out btn-sm" data-baixar${podeBaixar() ? '' : ' hidden'}>Baixar planilha (.csv)</button></span></div><div class="card"><div class="filtros" role="group" aria-label="Filtros">
       ${f.lacuna ? `<button type="button" class="chip" data-lacuna-x aria-pressed="true" title="Tirar o filtro">Sem ${esc(f.lacuna)} ✕</button>` : ''}
       ${FILTROS_ST.map(([k, v]) => { const n = m.ds.filter((d) => passaSt(d, k)).length; return n || k === f.st ? `<button type="button" class="chip" data-st="${k}" aria-pressed="${f.st === k}">${v} ${num(n)}</button>` : ''; }).join('')}
       <select id="fPi" aria-label="PI"><option value="">Todos os PIs</option>${pis.map((p) => `<option ${f.pi === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
@@ -1783,7 +1783,7 @@ details.hist li + li { margin-top: 8px; }
     const lacuna = f.lacuna ? new Set((m.cadastro.find((x) => x.campo === f.lacuna) || { itens: [] }).itens.map((d) => d.chave)) : null;
     return m.ds.filter((d) => (!lacuna || lacuna.has(d.chave)) && passaSt(d, f.st) && (!f.pi || (d.piPlan || 'Sem PI') === f.pi) && (!f.area || (d.area || 'Sem área') === f.area) && (!f.etapa || d.etapa === f.etapa)
       && (!q || [d.id, d.titulo, d.respAcelen, ...(d.funcional || []), ...(d.abap || [])].some((v) => String(v ?? '').toLowerCase().includes(q))))
-      .sort((a, b) => ORDEM_ST.indexOf(a.st) - ORDEM_ST.indexOf(b.st) || (a.dias ?? 0) - (b.dias ?? 0) || String(b.r_concluido || b.cab || '').localeCompare(String(a.r_concluido || a.cab || '')) || String(b.id).localeCompare(String(a.id), 'pt', { numeric: true }));
+      .sort((a, b) => String(a.id).localeCompare(String(b.id), 'pt', { numeric: true }) || String(a.titulo).localeCompare(String(b.titulo), 'pt'));
   }
 
   // Farol da tabela: Atrasado = passou da data da fase ou bloqueada; Atenção = vence em até 7 dias ou
@@ -1800,11 +1800,7 @@ details.hist li + li { margin-top: 8px; }
   function renderLinhas() {
     const m = estado.modelo;
     const xs = linhasFiltradas();
-    $('#fConta').textContent = estado.todasAberta ? `Mostrando ${num(xs.length)} de ${num(m.ds.length)}` : '';
-    if (!estado.todasAberta) {
-      $('#tabTodas').innerHTML = `<div class="card-p"><button type="button" class="btn btn-out" data-abrir-todas>Mostrar ${xs.length === 1 ? 'a demanda' : `as ${num(xs.length)} demandas`} do filtro</button></div>`;
-      return;
-    }
+    $('#fConta').textContent = `Mostrando ${num(xs.length)} de ${num(m.ds.length)}`;
     $('#tabTodas').innerHTML = xs.length ? `<table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Área</th><th>PI</th><th>Fase</th><th>Farol</th><th>Conclusão fase atual</th><th>Baseline</th><th class="r">Horas</th><th>Resp. Acelen</th></tr></thead><tbody>${xs.map((d) => {
       const ab = estado.abertas.has(d.chave);
       return `<tr class="lin${d.st === 'atrasada' ? ' crit' : ''}" data-k="${esc(d.chave)}" aria-expanded="${ab}"><td style="white-space:nowrap"><button type="button" class="exp" aria-label="Detalhes de ${esc(d.id)}" aria-expanded="${ab}">▶</button><span class="cod">${esc(d.id)}</span></td><td class="tit">${esc(d.titulo)}</td><td class="nw">${esc(d.area || '—')}</td><td class="nw">${esc(d.piPlan || '—')}</td><td><span class="fase">${esc(d.fase || '—')}</span></td><td class="nw">${farolTag(d)}${porqueFarol(d) ? `<br><span class="nota">${esc(porqueFarol(d))}</span>` : ''}</td><td class="nw">${(() => { const c = conclusaoFase(d); return c ? `${dt(c[0])}<br><span class="nota">${esc(c[1])}</span>` : '<span class="muted">—</span>'; })()}</td><td class="nw">${d.sprintPlan ? esc(d.sprintPlan) : '<span class="muted">—</span>'}</td><td class="r">${d.horas != null ? num(d.horas) : '<span class="muted">—</span>'}</td><td>${esc(d.respAcelen || '—')}</td></tr>${ab ? `<tr class="det"><td colspan="10">${detalhe(d)}</td></tr>` : ''}`;
@@ -2138,7 +2134,6 @@ details.hist li + li { margin-top: 8px; }
 
   function abrirDemanda(chave) {
     estado.filtro = { st: 'todas', pi: '', area: '', etapa: '', q: '', lacuna: '' };
-    estado.todasAberta = true;
     estado.abertas.add(chave);
     renderTodas(estado.modelo);
     const tr = document.querySelector(`tr.lin[data-k="${CSS.escape(chave)}"]`);
@@ -2146,7 +2141,6 @@ details.hist li + li { margin-top: 8px; }
     else if (temGeral()) mostrarMsg(`A demanda ${chave.split('~')[0]} está fora do filtro do topo: limpe o filtro para vê-la na tabela.`);
   }
   function irParaTabela() {
-    estado.todasAberta = true;
     renderTodas(estado.modelo);
     $('#secTodas').scrollIntoView({ behavior: 'smooth', block: 'start' });
     $('#todas').focus({ preventScroll: true });
@@ -2168,7 +2162,7 @@ details.hist li + li { margin-top: 8px; }
     if (cap) {
       const k = cap.dataset.etapa;
       estado.filtro = { st: 'todas', pi: '', area: '', etapa: estado.filtro.etapa === k ? '' : k, q: '', lacuna: '' };
-      if (!estado.filtro.etapa) estado.filtro.st = 'abertas';
+      if (!estado.filtro.etapa) estado.filtro.st = 'todas';
       document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.etapa === estado.filtro.etapa)));
       irParaTabela();
       return;
@@ -2177,15 +2171,13 @@ details.hist li + li { margin-top: 8px; }
     if (chipSt && chipSt.classList.contains('chip')) {
       // só as linhas mudam: o chip continua no lugar e com o foco
       estado.filtro.st = chipSt.dataset.st;
-      estado.todasAberta = true;
-      document.querySelectorAll('#secTodas [data-st]').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.st === estado.filtro.st)));
+        document.querySelectorAll('#secTodas [data-st]').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.st === estado.filtro.st)));
       renderLinhas();
       return;
     }
-    if (t.closest('[data-abrir-todas]')) { estado.todasAberta = true; renderLinhas(); const l = $('#tabTodas tr.lin .exp'); if (l) l.focus(); return; }
     const lac = t.closest('[data-lacuna]');
     if (lac) { estado.filtro = { st: 'todas', pi: '', area: '', etapa: '', q: '', lacuna: lac.dataset.lacuna }; irParaTabela(); return; }
-    if (t.closest('[data-lacuna-x]')) { estado.filtro.lacuna = ''; estado.filtro.st = 'abertas'; renderTodas(estado.modelo); $('#todas').focus(); return; }
+    if (t.closest('[data-lacuna-x]')) { estado.filtro.lacuna = ''; estado.filtro.st = 'todas'; renderTodas(estado.modelo); $('#todas').focus(); return; }
     if (t.closest('[data-geral-limpar]')) { estado.geral = { area: '', pi: '', sprint: '', fase: '' }; recalcular().then(() => $('#secFiltro select').focus()); return; }
     const bx = t.closest('[data-baixar]');
     if (bx) { baixar(bx); return; }
@@ -2216,10 +2208,9 @@ details.hist li + li { margin-top: 8px; }
       estado.filtro.etapa = e.target.value;
       document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.etapa === estado.filtro.etapa)));
     } else return;
-    estado.todasAberta = true;
     renderLinhas();
   });
-  document.addEventListener('input', (e) => { if (e.target.id === 'fBusca') { estado.filtro.q = e.target.value; estado.todasAberta = true; renderLinhas(); } });
+  document.addEventListener('input', (e) => { if (e.target.id === 'fBusca') { estado.filtro.q = e.target.value; renderLinhas(); } });
 
   // soltar o arquivo em qualquer lugar da página
   let arrastando = 0;
