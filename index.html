@@ -1230,7 +1230,7 @@ details.hist li + li { margin-top: 8px; }
   const estado = {
     db: null, podeGravar: null, exportacoes: [], cache: new Map(), selecionada: null, modelo: null,
     filtro: { st: 'abertas', pi: '', area: '', etapa: '', q: '', lacuna: '' }, todasAberta: false, abertas: new Set(), pessoas: 'respAcelen', carga: 'abap', referencias: [],
-    geral: { area: '', pi: '', sprint: '', fase: '' }, base: null, modeloArea: null,
+    geral: { area: '', pi: '', sprint: '', fase: '' }, base: null, modeloArea: null, downloads: null,
   };
 
   // ---------- desenho ----------
@@ -1734,7 +1734,7 @@ details.hist li + li { margin-top: 8px; }
     document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.etapa === f.etapa)));
     const pis = m.pis.map((p) => p.pi);
     const areas = m.areas.map((a) => a.area);
-    $('#secTodas').innerHTML = `<div class="sec-h"><h2 id="todas" tabindex="-1">Todas as demandas</h2><span class="meta">clique numa linha para ver datas, pessoas e histórico</span></div><div class="card"><div class="filtros" role="group" aria-label="Filtros">
+    $('#secTodas').innerHTML = `<div class="sec-h"><h2 id="todas" tabindex="-1">Todas as demandas</h2><span class="meta">clique numa linha para ver datas, pessoas e histórico</span><span class="dir"><button type="button" class="btn btn-out btn-sm" data-baixar${podeBaixar() ? '' : ' hidden'}>Baixar planilha (.csv)</button></span></div><div class="card"><div class="filtros" role="group" aria-label="Filtros">
       ${f.lacuna ? `<button type="button" class="chip" data-lacuna-x aria-pressed="true" title="Tirar o filtro">Sem ${esc(f.lacuna)} ✕</button>` : ''}
       ${FILTROS_ST.map(([k, v]) => { const n = m.ds.filter((d) => passaSt(d, k)).length; return n || k === f.st ? `<button type="button" class="chip" data-st="${k}" aria-pressed="${f.st === k}">${v} ${num(n)}</button>` : ''; }).join('')}
       <select id="fPi" aria-label="PI"><option value="">Todos os PIs</option>${pis.map((p) => `<option ${f.pi === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
@@ -1745,14 +1745,19 @@ details.hist li + li { margin-top: 8px; }
     renderLinhas();
   }
 
-  function renderLinhas() {
+  function linhasFiltradas() {
     const m = estado.modelo;
     const f = estado.filtro;
     const q = f.q.trim().toLowerCase();
     const lacuna = f.lacuna ? new Set((m.cadastro.find((x) => x.campo === f.lacuna) || { itens: [] }).itens.map((d) => d.chave)) : null;
-    const xs = m.ds.filter((d) => (!lacuna || lacuna.has(d.chave)) && passaSt(d, f.st) && (!f.pi || (d.piPlan || 'Sem PI') === f.pi) && (!f.area || (d.area || 'Sem área') === f.area) && (!f.etapa || d.etapa === f.etapa)
+    return m.ds.filter((d) => (!lacuna || lacuna.has(d.chave)) && passaSt(d, f.st) && (!f.pi || (d.piPlan || 'Sem PI') === f.pi) && (!f.area || (d.area || 'Sem área') === f.area) && (!f.etapa || d.etapa === f.etapa)
       && (!q || [d.id, d.titulo, d.respAcelen, ...(d.funcional || []), ...(d.abap || [])].some((v) => String(v ?? '').toLowerCase().includes(q))))
       .sort((a, b) => ORDEM_ST.indexOf(a.st) - ORDEM_ST.indexOf(b.st) || (a.dias ?? 0) - (b.dias ?? 0) || String(b.r_concluido || b.cab || '').localeCompare(String(a.r_concluido || a.cab || '')) || String(b.id).localeCompare(String(a.id), 'pt', { numeric: true }));
+  }
+
+  function renderLinhas() {
+    const m = estado.modelo;
+    const xs = linhasFiltradas();
     $('#fConta').textContent = estado.todasAberta ? `Mostrando ${num(xs.length)} de ${num(m.ds.length)}` : '';
     if (!estado.todasAberta) {
       $('#tabTodas').innerHTML = `<div class="card-p"><button type="button" class="btn btn-out" data-abrir-todas>Mostrar ${xs.length === 1 ? 'a demanda' : `as ${num(xs.length)} demandas`} do filtro</button></div>`;
@@ -1762,6 +1767,52 @@ details.hist li + li { margin-top: 8px; }
       const ab = estado.abertas.has(d.chave);
       return `<tr class="lin${d.st === 'atrasada' ? ' crit' : ''}" data-k="${esc(d.chave)}" aria-expanded="${ab}"><td style="white-space:nowrap"><button type="button" class="exp" aria-label="Detalhes de ${esc(d.id)}" aria-expanded="${ab}">▶</button><span class="cod">${esc(d.id)}</span></td><td class="tit">${esc(d.titulo)}<small>${esc(d.area || '')}</small></td><td style="white-space:nowrap">${esc(d.piPlan || '—')}</td><td><span class="fase">${esc(d.fase || '—')}</span></td><td>${stTag(d.st)}<br><span class="nota">${esc(prazoTxt(d))}</span></td><td class="r">${d.horas != null ? num(d.horas) : '<span class="muted">—</span>'}</td><td>${esc(d.respAcelen || '—')}</td></tr>${ab ? `<tr class="det"><td colspan="7">${detalhe(d)}</td></tr>` : ''}`;
     }).join('')}</tbody></table>` : '<div class="card-p nota">Nenhuma demanda com esses filtros.</div>';
+  }
+
+  // ---------- planilha da lista filtrada ----------
+  // CSV com ponto e vírgula e BOM, como o Excel em português abre. No artifact o arquivo sai pela
+  // capacidade downloads (o viewer confirma); aberto do disco, por um link de download comum.
+  const podeBaixar = () => !globalThis.claude || !!estado.downloads;
+  const MOTIVO = { atrasada: 'atrasada de fato', encerrar: 'CAB passou: confirmar a subida e encerrar', atualizar: 'data real lançada: falta atualizar a fase' };
+  function planilha(m, xs) {
+    const br = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
+    const lacunas = new Map();
+    m.cadastro.forEach((x) => x.itens.forEach((d) => lacunas.set(d.chave, [...(lacunas.get(d.chave) || []), x.campo])));
+    const cel = (v) => { const t = v == null ? '' : String(v); return /[;"\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const cab = ['Código', 'Demanda', 'PI', 'Sprint baseline', 'Área', 'Fase na lista', 'Subfase', 'Situação', 'Motivo', 'Marco', 'Data do marco', 'Dias até o marco', 'Resp. Acelen', 'Funcional', 'ABAP', 'Horas', 'Status report', 'Lacunas do cadastro'];
+    const linhas = xs.map((d) => [d.id, d.titulo, d.piPlan, d.sprintPlan, d.area, d.fase, d.etapa ? E.ETAPAS.find((e) => e.k === d.etapa).nome : '', ST[d.st][1], MOTIVO[d.motivo] || '',
+      d.prazo ? d.marco : '', br(d.prazo), d.prazo ? d.dias : '', d.respAcelen, (d.funcional || []).join(', '), (d.abap || []).join(', '),
+      d.horas != null ? String(d.horas).replace('.', ',') : '', d.statusReport, (lacunas.get(d.chave) || []).join(' · ')]);
+    return `\uFEFF${[cab, ...linhas].map((l) => l.map(cel).join(';')).join('\r\n')}\r\n`;
+  }
+  function nomePlanilha(m) {
+    const f = estado.filtro;
+    const partes = [...FGERAL.map(([k]) => estado.geral[k]), f.st !== 'todas' && f.st, f.pi, f.area, f.etapa, f.lacuna && `sem ${f.lacuna}`, f.q && `busca ${f.q}`].filter(Boolean);
+    const slug = partes.join('-').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+    return `esteira-acelen-${m.corte}${slug ? `-${slug}` : ''}.csv`;
+  }
+  async function baixar(botao) {
+    const m = estado.modelo;
+    const nome = nomePlanilha(m);
+    const dados = planilha(m, linhasFiltradas());
+    const aviso = (txt) => { botao.dataset.rot ||= botao.textContent; botao.textContent = txt; setTimeout(() => { botao.textContent = botao.dataset.rot; }, 2500); };
+    if (!globalThis.claude) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([dados], { type: 'text/csv;charset=utf-8' }));
+      a.download = nome;
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      aviso('Baixada ✓');
+      return;
+    }
+    try {
+      await estado.downloads.save({ filename: nome, data: new Blob([dados]) });
+      aviso('Baixada ✓');
+    } catch (e) {
+      if (e && e.code === 'declined') return;
+      if (e && e.code === 'rate_limited') { aviso('Aguarde e tente de novo'); return; }
+      aviso('Não deu para baixar aqui');
+    }
   }
 
   function detalhe(d) {
@@ -1798,6 +1849,7 @@ details.hist li + li { margin-top: 8px; }
       <p><b>PI.</b> PI Planning. Concluída no próprio PI: PI Entregue igual ao PI Planning. Carry-over: PI Entregue posterior. Horas: QtdHoras (estimativa).</p>
       <p><b>Pessoas.</b> Funcional e ABAP vêm no formato do SharePoint (nome;#id); fica o nome. Demanda com mais de uma pessoa conta para cada uma.</p>
       <p><b>Riscos.</b> Crítico: mais de ${m.LIM.dias} dias além do prazo da fase (nas prontas sem CAB, contado do pronto planejado), ou bloqueada sem data de pronto, estimativa nem status report. Atenção: demanda acima de ${m.LIM.horas} h com prazo em até ${m.LIM.perto} dias ou pronta sem CAB; ${m.LIM.uatDia} ou mais homologações no mesmo dia para o mesmo responsável Acelen; pessoa-chave (${Math.round(m.LIM.fatia * 100)}% ou mais das abertas do papel e ${m.LIM.areas} áreas ou mais, um terço ou mais das atrasadas ou pico acima de ${m.LIM.cargaDia} h por dia útil). Info: abertas sem data na fase atual.</p>
+      <p><b>Planilha.</b> “Baixar planilha” em Todas as demandas leva as linhas do filtro da tabela (e do filtro do topo), em CSV com ponto e vírgula, datas dd/mm/aaaa e as lacunas de cadastro de cada demanda.</p>
       <p><b>Comparação.</b> Cada exportação carregada fica guardada com a data de corte. A seção de mudanças compara a exportação aberta com a anterior, demanda a demanda, pelo NumeroDemanda (e pelo título, quando o número se repete).</p>
     </div></div>`;
   }
@@ -2062,6 +2114,8 @@ details.hist li + li { margin-top: 8px; }
     if (lac) { estado.filtro = { st: 'todas', pi: '', area: '', etapa: '', q: '', lacuna: lac.dataset.lacuna }; irParaTabela(); return; }
     if (t.closest('[data-lacuna-x]')) { estado.filtro.lacuna = ''; estado.filtro.st = 'abertas'; renderTodas(estado.modelo); $('#todas').focus(); return; }
     if (t.closest('[data-geral-limpar]')) { estado.geral = { area: '', pi: '', sprint: '', fase: '' }; recalcular().then(() => $('#secFiltro select').focus()); return; }
+    const bx = t.closest('[data-baixar]');
+    if (bx) { baixar(bx); return; }
     const cop = t.closest('[data-copiar]');
     if (cop) { copiar(textoSemana(estado.modelo), cop); return; }
     const cob = t.closest('[data-cobrar]');
@@ -2136,6 +2190,10 @@ details.hist li + li { margin-top: 8px; }
     } catch { mostrarMsg('A exportação embutida nesta cópia não abriu.', true); }
   }
   iniciarDb();
+  if (globalThis.claude && typeof globalThis.claude.use === 'function') {
+    globalThis.claude.use('downloads').then((d) => { estado.downloads = d; }, () => { estado.downloads = null; })
+      .then(() => document.querySelectorAll('[data-baixar]').forEach((b) => { b.hidden = !podeBaixar(); }));
+  }
 })();
 </script>
 </body>
