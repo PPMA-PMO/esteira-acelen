@@ -960,6 +960,28 @@ details.hist li + li { margin-top: 8px; }
       { campo: 'Data real de fase já passada', derivado: true, itens: ds.filter((d) => aderencia.some((a) => a.semReal.includes(d))), base: ds.filter((d) => ORDEM[d.tipo] > ORDEM.refinamento).length, baseNome: 'que passaram do refinamento', efeito: 'a fase andou sem a data real: o prazo planejado × real não mede essa demanda' },
     ].filter((x) => x.itens.length);
 
+    // Regra de avanço decidida no board de 28/09/2026, do PI 4 em diante: a fase só avança com a data
+    // real da fase anterior, horas e tamanho, e Nº do Charm. A data real vale para toda demanda que saiu
+    // do Backlog; horas, tamanho e Charm, a partir da construção (antes disso a estimativa ainda muda).
+    const REGRA = { desdePI: 4, camposDesde: 'construcao' };
+    const ANTERIOR = { refinamento: 'r_inicio', construcao: 'r_refinamento', homologacao: 'r_construcao', pronto: 'r_homologacao', concluido: 'r_pronto' };
+    const numPI = (pi) => { const x = /\d+/.exec(pi || ''); return x ? Number(x[0]) : null; };
+    const avancaram = ds.filter((d) => numPI(d.piPlan) >= REGRA.desdePI && ANTERIOR[d.tipo]).map((d) => {
+      const r = d[ANTERIOR[d.tipo]];
+      const campos = ORDEM[d.tipo] >= ORDEM[REGRA.camposDesde];
+      const falta = [!r && 'sem data real', r && dia(r) > c && 'data real depois do corte', campos && (d.horas == null || !d.tamanho) && 'sem horas ou tamanho', campos && d.charm == null && 'sem Nº do Charm'].filter(Boolean);
+      return { d, campos, falta };
+    });
+    const regra = {
+      ...REGRA, n: avancaram.length, cumprem: avancaram.filter((x) => !x.falta.length).length, comCampos: avancaram.filter((x) => x.campos).length,
+      falhas: avancaram.filter((x) => x.falta.length),
+      conta: avancaram.reduce((o, x) => { x.falta.forEach((f) => { o[f] = (o[f] || 0) + 1; }); return o; }, {}),
+    };
+    if (regra.falhas.length) {
+      cadastro.push({ campo: `Regra de avanço do PI ${REGRA.desdePI} em diante`, derivado: true, itens: regra.falhas.map((x) => x.d), base: regra.n, baseNome: 'que avançaram de fase',
+        efeito: `avançaram ${Object.entries(regra.conta).map(([k, n]) => `${k} ${n}`).join(' · ')}. Decisão do board: data real da fase anterior em toda demanda que saiu do Backlog; horas, tamanho e Nº do Charm a partir da construção` });
+    }
+
     // Fechamento do PI mais recente. Ritmo = quantas demandas a mais ficaram prontas ou concluídas por
     // dia útil, desde a medição mais antiga feita entre 7 e 28 dias antes do corte. Há dois ritmos: o da
     // esteira toda e o do próprio PI, porque a esteira pode estar fechando outro PI (como o PI 3 em out/26).
@@ -1128,6 +1150,7 @@ details.hist li + li { margin-top: 8px; }
       { k: 'grande', nivel: 'atencao', itens: abertas.filter((d) => d.horas > LIM.horas && (d.st === 'semcab' || (d.dias != null && d.dias >= 0 && d.dias <= LIM.perto))).sort((a, b) => b.horas - a.horas).map((d) => ({ d })) },
       { k: 'uatDia', nivel: 'atencao', itens: uat.grupos.flatMap((g) => g.picos.filter((x) => x.n >= LIM.uatDia).map((x) => ({ nome: g.nome, ...x }))) },
       { k: 'chave', nivel: 'atencao', itens: pessoasChave },
+      { k: 'regra', nivel: 'atencao', itens: regra.falhas, base: regra.n },
       { k: 'semData', nivel: 'info', itens: abertas.filter((d) => d.st === 'semdata' || d.st === 'semcab').map((d) => ({ d })), base: abertas.length },
     ].filter((r) => r.itens.length);
 
@@ -1145,7 +1168,7 @@ details.hist li + li { margin-top: 8px; }
     };
 
     return {
-      leitura, riscos, pessoasChave, LIM, snap, corte: snap.corte, ds, abertas, concl, prontas, st, etapas, fora, acao, pis, aderencia, meses, proximas, areas,
+      leitura, riscos, pessoasChave, LIM, regra, snap, corte: snap.corte, ds, abertas, concl, prontas, st, etapas, fora, acao, pis, aderencia, meses, proximas, areas,
       pessoas, replan, qualidade, cadastro, repetidos, previsao, cargas, uat, lead, motivos: contar(ds.filter((d) => d.motivo), (d) => d.motivo),
       horas: { total: somaH(ds), concl: somaH(concl), abertas: somaH(abertas), prontas: somaH(prontas), abertasSemEst: sem(abertas, 'horas').length },
       piAtual, outrosPIs, desconhecidas: contar(ds.filter((d) => d.st === 'desconhecida'), (d) => d.fase || '(sem fase)'),
@@ -1494,6 +1517,12 @@ details.hist li + li { margin-top: 8px; }
       if (r.k === 'bloqueada') return { ...base, txt: `${pl(n, 'bloqueada', 'bloqueadas')} sem data de pronto, estimativa de horas nem status report`, cods: r.itens.map((x) => ({ d: x.d })) };
       if (r.k === 'grande') return { ...base, txt: `${pl(n, 'demanda', 'demandas')} acima de ${L.horas} h com prazo em até ${L.perto} dias ou pronta sem CAB`, cods: r.itens.map((x) => ({ d: x.d, extra: `${num(x.d.horas)} h, ${x.d.st === 'semcab' ? 'sem CAB' : `${(MARCO_CURTO[x.d.marco] || x.d.marco).toLowerCase()} ${dt(x.d.prazo)}`}` })) };
       if (r.k === 'uatDia') return { ...base, txt: `${L.uatDia} ou mais homologações no mesmo dia para o mesmo responsável Acelen: ${r.itens.map((x) => `${x.nome}, ${x.n} em ${dt(x.data)}`).join('; ')}` };
+      if (r.k === 'regra') {
+        const g = m.regra;
+        const ok = g.comCampos - g.falhas.filter((x) => x.campos).length;
+        const extra = g.comCampos ? `; das ${num(g.comCampos)} em Construção ou além, ${ok ? `${num(ok)} ${ok === 1 ? 'cumpre' : 'cumprem'}` : 'nenhuma cumpre'}` : '';
+        return { ...base, txt: `Regra de avanço do PI ${g.desdePI} em diante: ${num(g.cumprem)} de ${num(g.n)} que avançaram de fase ${g.cumprem === 1 ? 'cumpre' : 'cumprem'} (data real da fase anterior; horas, tamanho e Nº do Charm a partir da construção)${extra}. Lista em Qualidade do cadastro` };
+      }
       if (r.k === 'chave') return { ...base, txt: `${n === 1 ? 'Pessoa-chave' : 'Pessoas-chave'}: ${r.itens.map(chaveTxt).join('; ')}` };
       return { ...base, txt: `${num(n)} das ${num(r.base)} abertas sem data na fase atual: o prazo delas não é medido` };
     });
