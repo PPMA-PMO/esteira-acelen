@@ -76,7 +76,7 @@ if (m.previsao) {
 }
 // Agenda de homologação: só demanda que ainda não homologou, até 6 semanas à frente.
 confere(m.uat.grupos.flatMap((g) => g.itens).every((x) => !x.d.r_homologacao && x.dias <= 42 && ['backlog', 'refinamento', 'construcao', 'homologacao'].includes(x.d.tipo)), 'agenda de homologação com demanda fora da regra');
-confere(m.uat.grupos.reduce((s, g) => s + g.itens.length, 0) === m.uat.total, 'agenda de homologação: grupos não fecham com o total');
+confere(m.uat.grupos.reduce((s, g) => s + g.itens.length, 0) === m.uat.total + m.uat.vencidas, 'agenda de homologação: grupos não fecham com o total e as vencidas');
 // Tempo real de entrega: só concluídas, com fim até o corte.
 confere(m.lead.n <= m.concl.length && m.lead.porPI.reduce((s, x) => s + x.n, 0) === m.lead.n, 'tempo de entrega: base não fecha');
 
