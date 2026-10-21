@@ -118,10 +118,10 @@ const horasDe = (g) => g.itens.reduce((s, d) => s + (d.horas || 0), 0);
 const elegiveis = m.acao.filter((g) => g.k !== 'vence' && g.itens.length >= 3);
 confere((L.pedido?.k ?? null) === (elegiveis.length ? elegiveis.reduce((a, b) => (horasDe(b) > horasDe(a) || (horasDe(b) === horasDe(a) && b.itens.length > a.itens.length) ? b : a)).k : null), `leitura: pedido ${L.pedido?.k}, esperado o grupo com mais horas`);
 // - próximas 6 semanas, pela regra escrita sobre os campos crus: aberta, não bloqueada, com fim de fase
-//   (Backlog, Refinamento, Construção) ou CAB entre 0 e 42 dias, ou na agenda de homologação;
+//   (Backlog, Refinamento, Construção) ou CAB entre 0 e 42 dias, ou homologação à frente na agenda;
 const em42 = (iso) => iso && E.dia(iso) - c >= 0 && E.dia(iso) - c <= 42;
 const PRAZO_FASE = { backlog: 'p_inicio', refinamento: 'p_refinamento', construcao: 'p_construcao' };
-const naAgenda = new Set(m.uat.grupos.flatMap((g) => g.itens.map((x) => x.d.chave)));
+const naAgenda = new Set(m.uat.grupos.flatMap((g) => g.itens.filter((x) => x.dias >= 0).map((x) => x.d.chave)));
 const esperadas = m.ds.filter((d) => !['concluido', 'cancelada', 'bloqueado', 'outra'].includes(E.faseTipo(d.fase))
   && (em42(d[PRAZO_FASE[E.faseTipo(d.fase)]]) || em42(d.cab) || naAgenda.has(d.chave))).map((d) => d.chave).sort();
 confere(JSON.stringify(m.proximas.map((x) => x.d.chave).sort()) === JSON.stringify(esperadas), `próximas 6 semanas: ${m.proximas.length} linhas, a regra dá ${esperadas.length}`);

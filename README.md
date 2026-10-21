@@ -25,9 +25,13 @@ lê ou escreve no Supabase do PPMA.
 Acima da Leitura da semana: **Área · PI · Sprint · Fase**, em cascata. O report inteiro é recalculado
 sobre as demandas que passam. Cada lista mostra todos os valores da exportação e conta só o que passa
 nos outros filtros; valor com 0 fica desabilitado. Sprint é o **Sprint real** (Sprint Pronto/Em
-Encerramento). Área × PI continua com todas as áreas e PIs, com a seleção em destaque. Com filtro, a
-comparação com a exportação anterior olha as mesmas demandas, e o ritmo do fechamento do PI usa só as
-exportações guardadas: a referência do board vale para a esteira toda.
+Encerramento). Área × PI continua com todas as áreas e PIs, com a seleção em destaque. Com filtro:
+- a comparação com a exportação anterior é a da esteira toda (o par de cada demanda não muda), mostrando
+  as demandas que passam no filtro agora ou passavam antes;
+- o ritmo do fechamento do PI e as frases que falavam da "esteira toda" passam a ser do recorte, e só as
+  exportações guardadas medem o ritmo: a referência do board vale para a esteira toda;
+- com filtro de Fase ou Sprint, o Fechamento do PI não aparece: o PI fecha com todas as suas demandas;
+- pessoa-chave continua medida na esteira toda.
 
 ## Regras que o report aplica
 
@@ -46,8 +50,9 @@ exportações guardadas: a referência do board vale para a esteira toda.
   Construção e Homologação × prontas sem encerrar; Prazo = a fase medida (5 ou mais) com menor e maior
   % no prazo, com a ressalva de cobertura; PI = PI anterior com o último pronto planejado vencido e
   demanda aberta, e o PI em execução; Pedido = o grupo de Pedem ação (fora "vencem em 7 dias", 3 ou mais
-  demandas) com mais horas. "Copiar texto da semana" leva isso, os grupos de Pedem ação, as mudanças
-  desde a exportação anterior e as próximas 2 semanas.
+  demandas) com mais horas. "Copiar texto da semana" leva isso, os riscos, os grupos de Pedem ação,
+  as mudanças desde a exportação anterior e as próximas 2 semanas (fim de fase, homologação, com a marca
+  de replanejar quando o plano não fecha, e CAB).
 - **Cobertura do prazo planejado × real**: medidas ÷ demandas que já passaram da fase (ou têm a data
   real dela). PI com 5 ou mais que passaram e menos da metade medida aparece como "pouco medido".
 - **Cobrar** (seção Pessoas): copia as abertas da pessoa com o pedido de cada uma (encerrar, atualizar a
@@ -65,8 +70,8 @@ exportações guardadas: a referência do board vale para a esteira toda.
   a lista não tem horas apontadas.
 - **Próximas 6 semanas**: uma linha por demanda aberta (fora as bloqueadas) com fim de fase (Data de
   Início, Data de Entrega Refinamento ou Construção), homologação (Data de Entrega Homologação das que
-  ainda não homologaram) ou Data CAB nos próximos 42 dias; no topo, as homologações por responsável
-  Acelen, com 2 ou mais no mesmo dia em destaque.
+  ainda não homologaram) ou Data CAB nos próximos 42 dias; homologação já vencida não abre linha. No
+  topo, as homologações por responsável Acelen, com 2 ou mais no mesmo dia em destaque.
 - **Riscos**, com os limites em `LIM` no núcleo. Crítico: mais de 30 dias além do prazo da fase (pronta
   sem CAB conta do pronto planejado); bloqueada sem data de pronto, estimativa nem status report.
   Atenção: acima de 160 h com prazo em até 14 dias ou pronta sem CAB; 3 ou mais homologações no mesmo

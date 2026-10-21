@@ -152,7 +152,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .indice a { color: var(--ink-2); }
 .indice a:hover { color: var(--link); }
 .bloco { font-size: 12px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--link); padding-top: 10px; border-top: 2px solid var(--border); margin-bottom: -10px; scroll-margin-top: 56px; }
-section { scroll-margin-top: 56px; }
+section, h2[id] { scroll-margin-top: 64px; }
 section { min-width: 0; }
 .sec-h { display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .sec-h h2 { font-size: 17px; font-weight: 600; }
@@ -297,7 +297,7 @@ section { min-width: 0; }
 #tip { position: fixed; z-index: 30; max-width: 280px; background: #0E1113; color: #FFFFFF; font-size: 12px; line-height: 1.4; padding: 6px 10px; border-radius: 6px; pointer-events: none; box-shadow: 0 6px 18px rgba(0, 0, 0, .25); }
 
 .fgeral { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; padding: 14px 20px; }
-.fgeral label { display: grid; gap: 5px; font-size: 12px; font-weight: 600; color: var(--ink-2); flex: 0 1 200px; min-width: 0; }
+.fgeral label { display: grid; gap: 5px; font-size: 12px; font-weight: 600; color: var(--ink-2); flex: 1 1 190px; max-width: 290px; min-width: 0; }
 .fgeral select { width: 100%; border: 1px solid var(--border-input); background: var(--surface); color: var(--ink-1); border-radius: 8px; padding: 7px 10px; font: 13px var(--font-body); }
 .fgeral select.ativo { border-color: var(--link); box-shadow: 0 0 0 1px var(--link); }
 .fgeral .fg-conta { font-size: 12.5px; color: var(--ink-2); padding-bottom: 8px; }
@@ -345,6 +345,15 @@ details.hist li + li { margin-top: 8px; }
   .leitura li { grid-template-columns: 1fr; }
   .fgeral label { flex: 1 1 140px; }
   .riscos li { grid-template-columns: 1fr; }
+  .prox, .prox tbody, .prox tr.grp, .prox tr.grp td { display: block; }
+  .prox thead { display: none; }
+  .prox tr:not(.grp) { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 12px; padding: 10px 16px; border-bottom: 1px solid var(--border-soft); }
+  .prox tr:not(.grp) > td { padding: 0; border: 0; }
+  .prox tr:not(.grp) > td.nw { grid-column: 1 / -1; }
+  .prox tr:not(.grp) > td.nw:empty { display: none; }
+  .prox td[data-rot]::before { content: attr(data-rot) ": "; color: var(--ink-2); font-size: 12px; }
+  .prox td.nw small { display: inline; margin-left: 6px; }
+  .prox td.tit .um { white-space: normal; }
   .band-mark { width: 300px; height: 300px; right: -110px; top: -80px; }
   .vazio { grid-template-columns: 1fr; padding: 22px; }
   .vazio svg { width: 72px; height: 72px; }
@@ -420,7 +429,7 @@ details.hist li + li { margin-top: 8px; }
   </section>
 
   <div id="app" hidden style="display:contents">
-    <section id="secFiltro" aria-label="Filtro do report"></section>
+    <section id="secFiltro" aria-label="Filtro do report"><div class="card fgeral"><span id="fgCampos" style="display:contents"></span><span class="fg-conta" id="fgConta" aria-live="polite"></span><span id="fgAcoes" style="display:contents"></span></div></section>
     <section id="secLeitura"></section>
     <section id="secDelta"></section>
     <section id="secKpi"></section>
@@ -776,7 +785,8 @@ details.hist li + li { margin-top: 8px; }
     const antes = ant.demandas.map((d) => ({ ...d, ...situacao(d, ca), etapa: etapaDe(d, ca) }));
     const nomeEtapa = (k) => (ETAPAS.find((e) => e.k === k) || {}).nome;
     const itens = [];
-    for (const [a, d] of parear(antes, ds)) {
+    const pares = parear(antes, ds);
+    for (const [a, d] of pares) {
       if (!d) { itens.push({ tipo: 'saiu', d: a }); continue; }
       if (!a) { itens.push({ tipo: 'nova', d }); continue; }
       if (a.fase !== d.fase) itens.push({ tipo: d.st === 'concluida' ? 'concluida' : 'fase', d, de: a.fase, para: d.fase });
@@ -794,7 +804,7 @@ details.hist li + li { margin-top: 8px; }
       // saiu do atraso sem andar: mesma fase, e a data que vencia sumiu
       if (a.st === 'atrasada' && a.fase === d.fase && (d.st === 'semdata' || d.st === 'semcab' || d.st === 'aguardando')) itens.push({ tipo: 'saiuAtraso', d, nome: a.marco, de: a.prazo });
     }
-    return { de: ant.corte, itens, conta: contar(itens, (x) => x.tipo), demandas: new Set(itens.map((x) => x.d)).size };
+    return { de: ant.corte, itens, conta: contar(itens, (x) => x.tipo), demandas: new Set(itens.map((x) => x.d)).size, anteriorDe: new Map(pares.filter(([a, d]) => a && d).map(([a, d]) => [d, a])) };
   }
 
   // Dias úteis: segunda a sexta, sem os feriados nacionais (fixos, Carnaval, Sexta-feira Santa e
@@ -828,10 +838,12 @@ details.hist li + li { margin-top: 8px; }
     return { prontasOuConcluidas: ok.length, total: snap.demandas.length, porPI: contar(ok, (d) => d.piPlan || 'Sem PI') };
   };
 
-  function analisar(snap, ant, pontos) {
+  // opcoes (filtro do topo): a chave de comparação, a comparação e as pessoas-chave vêm da esteira toda,
+  // calculadas antes, para o recorte não mudar o par de uma demanda nem fabricar pessoa-chave.
+  function analisar(snap, ant, pontos, opcoes = {}) {
     const c = dia(snap.corte);
     const ks = chaves(snap.demandas);
-    const ds = snap.demandas.map((d, i) => ({ ...d, chave: ks[i], tipo: faseTipo(d.fase), ...situacao(d, c), etapa: etapaDe(d, c) }));
+    const ds = snap.demandas.map((d, i) => ({ ...d, chave: d.chave ?? ks[i], tipo: faseTipo(d.fase), ...situacao(d, c), etapa: etapaDe(d, c) }));
     const abertas = ds.filter(aberta);
     const concl = ds.filter((d) => d.st === 'concluida');
     const prontas = ds.filter((d) => d.tipo === 'pronto');
@@ -979,7 +991,7 @@ details.hist li + li { margin-top: 8px; }
     };
     if (regra.falhas.length) {
       cadastro.push({ campo: `Regra de avanço do PI ${REGRA.desdePI} em diante`, derivado: true, itens: regra.falhas.map((x) => x.d), base: regra.n, baseNome: 'que avançaram de fase',
-        efeito: `avançaram ${Object.entries(regra.conta).map(([k, n]) => `${k} ${n}`).join(' · ')}. Decisão do board: data real da fase anterior em toda demanda que saiu do Backlog; horas, tamanho e Nº do Charm a partir da construção` });
+        efeito: `Pendências: ${Object.entries(regra.conta).map(([k, n]) => `${k} (${n})`).join(' · ')}. Decisão do board: data real da fase anterior em toda demanda que saiu do Backlog; horas, tamanho e Nº do Charm a partir da construção` });
     }
 
     // Fechamento do PI mais recente. Ritmo = quantas demandas a mais ficaram prontas ou concluídas por
@@ -1089,6 +1101,7 @@ details.hist li + li { margin-top: 8px; }
 
     // Próximas 6 semanas: uma linha por demanda aberta com marco na janela. Fim da fase só até a
     // construção (o fim da homologação é a coluna Homologação, a agenda acima; o da pronta é a CAB).
+    // Homologação vencida não abre linha: só aparece na célula de uma demanda que já está na janela.
     const naJanela = (iso) => { const n = dia(iso) - c; return n >= 0 && n <= 42; };
     const uatDe = new Map(uatItens.map((x) => [x.d, x]));
     const proximas = abertas.filter((d) => d.st !== 'bloqueada').map((d) => ({
@@ -1096,8 +1109,8 @@ details.hist li + li { margin-top: 8px; }
       fase: d.prazo && ['backlog', 'refinamento', 'construcao'].includes(d.tipo) && naJanela(d.prazo) ? d.prazo : null,
       uat: uatDe.get(d) || null,
       cab: d.cab && naJanela(d.cab) ? d.cab : null,
-    })).filter((x) => x.fase || x.uat || x.cab)
-      .map((x) => ({ ...x, primeira: [x.fase, x.uat && x.uat.data, x.cab].filter(Boolean).sort()[0] }))
+    })).filter((x) => x.fase || (x.uat && x.uat.dias >= 0) || x.cab)
+      .map((x) => ({ ...x, primeira: [x.fase, x.uat && x.uat.dias >= 0 && x.uat.data, x.cab].filter(Boolean).sort()[0] }))
       .sort((a, b) => a.primeira.localeCompare(b.primeira) || porNome(a.d.id, b.d.id));
 
     // Tempo de entrega: do início registrado até a subida (Data CAB até o corte; sem ela, Data Concluído
@@ -1134,7 +1147,7 @@ details.hist li + li { margin-top: 8px; }
     const LIM = { dias: 30, horas: 160, perto: 14, uatDia: 3, fatia: 0.2, areas: 3, cargaDia: 8 };
     const atrasoDe = (d) => (['atrasada', 'encerrar', 'atualizar'].includes(d.motivo) ? -d.dias : d.st === 'semcab' && d.p_pronto ? c - dia(d.p_pronto) : null);
     const totalAtr = st.atrasada || 0;
-    const pessoasChave = ['respAcelen', 'funcional', 'abap'].flatMap((papel) => {
+    const pessoasChave = opcoes.pessoasChave || ['respAcelen', 'funcional', 'abap'].flatMap((papel) => {
       const comPapel = abertas.filter((d) => [].concat(d[papel] || []).length);
       return pessoas[papel].lista.map((p) => {
         const dsP = comPapel.filter((d) => [].concat(d[papel]).includes(p.nome));
@@ -1172,7 +1185,7 @@ details.hist li + li { margin-top: 8px; }
       pessoas, replan, qualidade, cadastro, repetidos, previsao, cargas, uat, lead, motivos: contar(ds.filter((d) => d.motivo), (d) => d.motivo),
       horas: { total: somaH(ds), concl: somaH(concl), abertas: somaH(abertas), prontas: somaH(prontas), abertasSemEst: sem(abertas, 'horas').length },
       piAtual, outrosPIs, desconhecidas: contar(ds.filter((d) => d.st === 'desconhecida'), (d) => d.fase || '(sem fase)'),
-      delta: ant ? comparar(ds, ant) : null,
+      delta: opcoes.delta !== undefined ? opcoes.delta : ant ? comparar(ds, ant) : null,
     };
   }
 
@@ -1230,7 +1243,7 @@ details.hist li + li { margin-top: 8px; }
   const estado = {
     db: null, podeGravar: null, exportacoes: [], cache: new Map(), selecionada: null, modelo: null,
     filtro: { st: 'abertas', pi: '', area: '', etapa: '', q: '', lacuna: '' }, todasAberta: false, abertas: new Set(), pessoas: 'respAcelen', carga: 'abap', referencias: [],
-    geral: { area: '', pi: '', sprint: '', fase: '' }, base: null, modeloArea: null, downloads: null,
+    geral: { area: '', pi: '', sprint: '', fase: '' }, base: null, modeloArea: null, downloads: null, vez: 0,
   };
 
   // ---------- desenho ----------
@@ -1294,7 +1307,7 @@ details.hist li + li { margin-top: 8px; }
       titulo = 'Nenhuma demanda aberta passou da data';
     }
     if (semcab) sub.push(`${num(semcab)} ${semcab === 1 ? 'está pronta' : 'estão prontas'} sem CAB agendada.`);
-    if (semdata) sub.push(`${num(semdata)} das ${num(m.abertas.length)} abertas não têm data na fase atual, então ficam fora da conta de prazo.`);
+    if (semdata) sub.push(`${semcab ? 'Outras ' : ''}${num(semdata)} das ${num(m.abertas.length)} abertas não têm data na fase atual, então ficam fora da conta de prazo.`);
     if (!atr && bloq) sub.unshift(`${num(m.abertas.length)} abertas.`);
     $('#titulo').textContent = titulo;
     $('#subtitulo').textContent = sub.join(' ') || (m.abertas.length ? `${pl(m.abertas.length, 'demanda aberta', 'demandas abertas')}, todas com data.` : 'Nenhuma demanda aberta.');
@@ -1355,8 +1368,8 @@ details.hist li + li { margin-top: 8px; }
       out.push({ rot: 'Prazo', txt: t });
     }
     const t = [];
-    const pv = m.previsao;
-    m.outrosPIs.filter((o) => o.duPassou != null).forEach((o) => {
+    const pv = semFechamento() ? null : m.previsao;
+    (semFechamento() ? [] : m.outrosPIs).filter((o) => o.duPassou != null).forEach((o) => {
       const partes = [o.cabPassou && `${num(o.cabPassou)} com a CAB vencida`, o.semCab && `${num(o.semCab)} sem CAB`, o.cabFutura && `${num(o.cabFutura)} com CAB agendada`,
         o.bloqueadas && pl(o.bloqueadas, 'bloqueada', 'bloqueadas'), o.antesDePronto && `${num(o.antesDePronto)} antes de pronto`].filter(Boolean);
       t.push(`O ${o.pi} tinha o último pronto planejado em ${dt(o.ultimo)} e não fechou: ${pl(o.abertas, 'aberta', 'abertas')} (${hh(o.horas)}), ${lista(partes)}.${pv ? ` Encerrar ou replanejar para o ${pv.pi}?` : ''}`);
@@ -1367,7 +1380,7 @@ details.hist li + li { margin-top: 8px; }
         : !pv.ultimo ? `${pv.pi}: ${faltam} para pronto e nenhuma tem data de pronto.`
         : pv.passou ? `${pv.pi}: o último pronto planejado (${dt(pv.ultimo)}) já passou e ${faltam}.`
         : `${pv.pi}: ${faltam} para pronto até ${dt(pv.ultimo)}, o que pede ${dec(pv.necessario)} por dia útil.`;
-      if (pv.deltaPI != null) x += ` Desde ${dt(pv.base.corte)}, o ${pv.pi} ${pv.deltaPI < 0 ? 'perdeu' : 'ganhou'} ${pl(Math.abs(pv.deltaPI), 'pronta', 'prontas')} (${dec(pv.ritmoPI)} por dia útil)${pv.delta > pv.deltaPI ? `; a esteira toda, ${num(pv.delta)}` : ''}.`;
+      if (pv.deltaPI != null) x += ` Desde ${dt(pv.base.corte)}, o ${pv.pi} ${pv.deltaPI < 0 ? 'perdeu' : 'ganhou'} ${pl(Math.abs(pv.deltaPI), 'pronta', 'prontas')} (${dec(pv.ritmoPI)} por dia útil)${pv.delta > pv.deltaPI ? `; ${temGeral() ? 'o recorte filtrado' : 'a esteira toda'}, ${num(pv.delta)}` : ''}.`;
       if (pv.ultimo && pv.semPronto) x += ` ${num(pv.semPronto)} das ${num(pv.faltam)} ainda não têm data de pronto.`;
       t.push(x);
     }
@@ -1404,7 +1417,7 @@ details.hist li + li { margin-top: 8px; }
     }
     if (m.delta && m.delta.itens.length) L.push('', `Desde a exportação de ${dt(m.delta.de, true)}: ${ORDEM_DELTA.filter((k) => m.delta.conta[k]).map((k) => `${num(m.delta.conta[k])} ${ROT_DELTA[k][m.delta.conta[k] === 1 ? 0 : 1]}`).join(', ')}.`);
     const c = E.dia(m.corte);
-    const prox = m.proximas.flatMap((x) => [[x.fase, x.d.marco], [x.uat && x.uat.data, 'Homologação'], [x.cab, 'CAB']]
+    const prox = m.proximas.flatMap((x) => [[x.fase, x.d.marco], [x.uat && x.uat.data, x.uat && x.uat.inviavel ? 'Homologação (replanejar: o plano não fecha)' : 'Homologação'], [x.cab, 'CAB']]
       .filter(([data]) => data && E.dia(data) - c >= 0 && E.dia(data) - c <= 14).map(([data, marco]) => ({ data, marco, d: x.d })))
       .sort((a, b) => a.data.localeCompare(b.data) || String(a.d.id).localeCompare(String(b.d.id), 'pt', { numeric: true }));
     if (prox.length) {
@@ -1500,31 +1513,33 @@ details.hist li + li { margin-top: 8px; }
       p ? `<div class="card kpi" style="--strip:linear-gradient(90deg,#AED47E,#4DB5A3)"><span class="rot">${esc(p.pi)} · em execução</span><div class="val"><b>${num(p.n)}</b><span>${p.n === 1 ? 'demanda' : 'demandas'} · ${num(p.concl)} ${p.concl === 1 ? 'concluída' : 'concluídas'}</span></div>${barra(E.ESTAGIOS.map((s) => ({ n: p.est[s.k] || 0, cor: COR_ESTAGIO[s.k], tip: `${p.est[s.k] || 0} · ${s.nome}` })), `${p.pi} por estágio`)}
         <span class="meta">${p.atrasadas ? `<span class="st-critical">▲ ${num(p.atrasadas)} ${p.atrasadas === 1 ? 'atrasada' : 'atrasadas'}</span> · ` : ''}${num(p.semdata)} sem data na fase · ${num(p.semEst)} sem estimativa de horas</span></div>` : '',
     ];
-    $('#secKpi').innerHTML = secH('A esteira', `${pl(m.ds.length, 'demanda', 'demandas')} · ${num(m.pis.length)} PIs · ${hh(m.horas.total)} estimadas`) + `<div class="kpis">${cards.join('')}</div>`;
+    $('#secKpi').innerHTML = secH('A esteira', `${pl(m.ds.length, 'demanda', 'demandas')} · ${pl(m.pis.length, 'PI', 'PIs')} · ${hh(m.horas.total)} estimadas`) + `<div class="kpis">${cards.join('')}</div>`;
   }
 
   // ---------- riscos ----------
   const NIVEL = { critico: ['▲', 'Crítico', 'critical'], atencao: ['◐', 'Atenção', 'at-risk'], info: ['—', 'Info', 'no-data'] };
   const PAPEL = { respAcelen: 'responsável Acelen', funcional: 'funcional', abap: 'ABAP' };
-  const chaveTxt = (x) => `${x.nome} (${PAPEL[x.papel]}: ${x.abertas} de ${x.base} abertas, ${pct(x.abertas, x.base)}%${x.motivos.includes('areas') ? `, ${x.areas} áreas` : ''}${x.motivos.includes('atrasadas') ? `, ${x.atrasadas} das ${x.totalAtr} atrasadas` : ''}${x.motivos.includes('carga') ? `, pico de ${num(Math.round(x.pico.porDia * 10) / 10)} h por dia útil até ${dt(x.pico.ate)}` : ''})`;
+  const chaveTxt = (x) => `${x.nome} (${PAPEL[x.papel]}: ${x.abertas} de ${pl(x.base, 'aberta', 'abertas')}, ${pct(x.abertas, x.base)}%${x.motivos.includes('areas') ? `, ${x.areas} áreas` : ''}${x.motivos.includes('atrasadas') ? `, ${x.totalAtr === 1 ? 'a única atrasada' : `${x.atrasadas} das ${x.totalAtr} atrasadas`}` : ''}${x.motivos.includes('carga') ? `, pico de ${num(Math.round(x.pico.porDia * 10) / 10)} h por dia útil até ${dt(x.pico.ate)}` : ''})`;
   // Cada risco vira uma frase e, quando há, os códigos (com o número que justifica entre parênteses).
   function riscoLinhas(m) {
     const L = m.LIM;
     return m.riscos.map((r) => {
       const n = r.itens.length;
       const base = { nivel: r.nivel, cods: [] };
-      if (r.k === 'atraso') return { ...base, txt: `${pl(n, 'demanda passou', 'demandas passaram')} mais de ${L.dias} dias do prazo da fase`, cods: r.itens.map((x) => ({ d: x.d, extra: `${x.atraso} d` })) };
+      if (r.k === 'atraso') return { ...base, txt: `${pl(n, 'demanda passou', 'demandas passaram')} mais de ${L.dias} dias da data (prazo da fase ou, nas prontas sem CAB, pronto planejado)`, cods: r.itens.map((x) => ({ d: x.d, extra: `${x.atraso} d` })) };
       if (r.k === 'bloqueada') return { ...base, txt: `${pl(n, 'bloqueada', 'bloqueadas')} sem data de pronto, estimativa de horas nem status report`, cods: r.itens.map((x) => ({ d: x.d })) };
-      if (r.k === 'grande') return { ...base, txt: `${pl(n, 'demanda', 'demandas')} acima de ${L.horas} h com prazo em até ${L.perto} dias ou pronta sem CAB`, cods: r.itens.map((x) => ({ d: x.d, extra: `${num(x.d.horas)} h, ${x.d.st === 'semcab' ? 'sem CAB' : `${(MARCO_CURTO[x.d.marco] || x.d.marco).toLowerCase()} ${dt(x.d.prazo)}`}` })) };
+      if (r.k === 'grande') return { ...base, txt: `${pl(n, 'demanda', 'demandas')} acima de ${L.horas} h com prazo em até ${L.perto} dias ou pronta sem CAB`, cods: r.itens.map((x) => ({ d: x.d, extra: `${num(x.d.horas)} h, ${x.d.st === 'semcab' ? 'sem CAB' : `${MARCO_CURTO[x.d.marco] || x.d.marco} ${dt(x.d.prazo)}`}` })) };
       if (r.k === 'uatDia') return { ...base, txt: `${L.uatDia} ou mais homologações no mesmo dia para o mesmo responsável Acelen: ${r.itens.map((x) => `${x.nome}, ${x.n} em ${dt(x.data)}`).join('; ')}` };
       if (r.k === 'regra') {
         const g = m.regra;
         const ok = g.comCampos - g.falhas.filter((x) => x.campos).length;
-        const extra = g.comCampos ? `; das ${num(g.comCampos)} em Construção ou além, ${ok ? `${num(ok)} ${ok === 1 ? 'cumpre' : 'cumprem'}` : 'nenhuma cumpre'}` : '';
-        return { ...base, txt: `Regra de avanço do PI ${g.desdePI} em diante: ${num(g.cumprem)} de ${num(g.n)} que avançaram de fase ${g.cumprem === 1 ? 'cumpre' : 'cumprem'} (data real da fase anterior; horas, tamanho e Nº do Charm a partir da construção)${extra}. Lista em Qualidade do cadastro` };
+        const extra = !g.comCampos ? '' : g.comCampos === 1 ? `; a única em Construção ou além ${ok ? 'cumpre' : 'não cumpre'}` : `; das ${num(g.comCampos)} em Construção ou além, ${ok ? `${num(ok)} ${ok === 1 ? 'cumpre' : 'cumprem'}` : 'nenhuma cumpre'}`;
+        return { ...base, txt: `Regra de avanço do PI ${g.desdePI} em diante: ${num(g.cumprem)} de ${num(g.n)} que ${g.n === 1 ? 'avançou' : 'avançaram'} de fase ${g.cumprem === 1 ? 'cumpre' : 'cumprem'} (data real da fase anterior; horas, tamanho e Nº do Charm a partir da construção)${extra}. Lista em Qualidade do cadastro` };
       }
       if (r.k === 'chave') return { ...base, txt: `${n === 1 ? 'Pessoa-chave' : 'Pessoas-chave'}: ${r.itens.map(chaveTxt).join('; ')}` };
-      return { ...base, txt: `${num(n)} das ${num(r.base)} abertas sem data na fase atual: o prazo delas não é medido` };
+      const sd = r.itens.filter((x) => x.d.st === 'semdata').length;
+      const quem = n === r.base ? (n === 1 ? 'A única aberta' : `Todas as ${num(n)} abertas`) : n === 1 ? `1 das ${num(r.base)} abertas` : `${num(n)} das ${num(r.base)} abertas`;
+      return { ...base, txt: `${quem} sem data na fase atual${sd && n - sd ? ` (${num(sd)} sem a data da fase e ${pl(n - sd, 'pronta sem CAB', 'prontas sem CAB')})` : ''}: o prazo ${n === 1 ? 'dela' : 'delas'} não é medido` };
     });
   }
   function renderRisco(m) {
@@ -1580,13 +1595,14 @@ details.hist li + li { margin-top: 8px; }
     const celUat = (u) => (!u ? '' : u.dias < 0 ? `<span class="st-critical">▲ ${dt(u.data)} · vencida</span>`
       : u.inviavel ? `<span class="st-critical" title="${esc(motivo(u))}">▲ ${dt(u.data)} · replanejar</span><small>${esc(motivo(u))}</small>` : dt(u.data));
     const pessoas = A.grupos.filter((g) => g.itens.length || g.semData);
-    const meta = `${pl(m.proximas.length, 'demanda', 'demandas')} com marco de ${dt(m.corte)} a ${dt(iso(c + 42))}${A.replanejar ? ` · ▲ ${pl(A.replanejar, 'homologação a replanejar', 'homologações a replanejar')}` : ''}${A.semData ? ` · ${num(A.semData)} das ${num(A.antes)} que ainda vão homologar sem data` : ''}`;
+    const meta = `${pl(m.proximas.length, 'demanda', 'demandas')} com marco de ${dt(m.corte)} a ${dt(iso(c + 42))}${A.replanejar ? ` · ▲ ${pl(A.replanejar, 'homologação a replanejar', 'homologações a replanejar')}` : ''}${A.vencidas ? ` · ▲ ${pl(A.vencidas, 'homologação vencida', 'homologações vencidas')}` : ''}${A.semData ? ` · ${A.antes === 1 ? 'a única que ainda vai homologar está sem data' : `${num(A.semData)} das ${num(A.antes)} que ainda vão homologar sem data`}` : ''}`;
     $('#secProximas').innerHTML = secH('Próximas 6 semanas', meta) + `<div class="card">${pessoas.length ? `<div class="card-h"><h3>Homologações por responsável Acelen</h3></div><ul class="resp">${pessoas.map((g) => {
       const validas = g.itens.filter((x) => x.dias >= 0).length;
-      return `<li><b>${esc(g.nome)}</b> · ${validas ? pl(validas, 'homologação', 'homologações') : 'nenhuma com data'}${g.picos.map((x) => ` · <span class="pico">▲ ${num(x.n)} no mesmo dia (${dt(x.data)})</span>`).join('')}${g.semData ? ` · <span class="muted">+${num(g.semData)} sem data</span>` : ''}</li>`;
-    }).join('')}</ul>` : ''}${semanas.length ? `<div class="tbl-wrap" style="border-top:1px solid var(--border-soft)"><table class="tbl"><thead><tr><th>Código</th><th>Demanda</th><th>Fim da fase</th><th>Homologação</th><th>CAB</th></tr></thead><tbody>${semanas.map((s) =>
+      const vencidas = g.itens.length - validas;
+      return `<li><b>${esc(g.nome)}</b> · ${validas ? pl(validas, 'homologação', 'homologações') : vencidas ? 'nenhuma à frente' : 'nenhuma com data'}${vencidas ? ` · <span class="pico">▲ ${pl(vencidas, 'vencida', 'vencidas')}</span>` : ''}${g.picos.map((x) => ` · <span class="pico">▲ ${num(x.n)} no mesmo dia (${dt(x.data)})</span>`).join('')}${g.semData ? ` · <span class="muted">+${num(g.semData)} sem data</span>` : ''}</li>`;
+    }).join('')}</ul>` : ''}${semanas.length ? `<div class="tbl-wrap" style="border-top:1px solid var(--border-soft)"><table class="tbl prox"><thead><tr><th>Código</th><th>Demanda</th><th>Fim da fase</th><th>Homologação</th><th>CAB</th></tr></thead><tbody>${semanas.map((s) =>
       `<tr class="grp"><td colspan="5"><b>Semana de ${dt(s.k)}</b><span>${pl(s.itens.length, 'demanda', 'demandas')}</span></td></tr>${s.itens.map((x) =>
-        `<tr${x.uat && (x.uat.dias < 0 || x.uat.inviavel) ? ' class="crit"' : ''}><td>${codBtn(x.d)}</td><td class="tit"><span class="um" title="${esc(x.d.titulo)}">${esc(x.d.titulo)}</span><small class="um">${esc([x.d.respAcelen, x.d.fase].filter(Boolean).join(' · '))}</small></td><td class="nw">${x.fase ? `${dt(x.fase)}<small>${esc(MARCO_CURTO[x.d.marco] || x.d.marco)}</small>` : ''}</td><td class="nw">${celUat(x.uat)}</td><td class="nw">${x.cab ? `<b>${dt(x.cab)}</b>` : ''}</td></tr>`).join('')}`).join('')}</tbody></table></div>`
+        `<tr${x.uat && (x.uat.dias < 0 || x.uat.inviavel) ? ' class="crit"' : ''}><td>${codBtn(x.d)}</td><td class="tit"><span class="um" title="${esc(x.d.titulo)}">${esc(x.d.titulo)}</span><small class="um">${esc([x.d.respAcelen, x.d.fase].filter(Boolean).join(' · '))}</small></td><td class="nw" data-rot="Fim da fase">${x.fase ? `${dt(x.fase)}<small>${esc(MARCO_CURTO[x.d.marco] || x.d.marco)}</small>` : ''}</td><td class="nw" data-rot="Homologação">${celUat(x.uat)}</td><td class="nw" data-rot="CAB">${x.cab ? `<b>${dt(x.cab)}</b>` : ''}</td></tr>`).join('')}`).join('')}</tbody></table></div>`
       : '<div class="card-p nota">Nenhum fim de fase, homologação ou CAB planejado nas próximas seis semanas.</div>'}
       <p class="nota nota-pe">Uma linha por demanda aberta (fora as bloqueadas) com algum marco nas próximas 6 semanas, agrupada pela semana do primeiro. Fim da fase: Data de Início, Data de Entrega Refinamento ou Data de Entrega Construção, conforme a fase atual. Homologação: Data de Entrega Homologação das que ainda não homologaram; “replanejar” é a data que o próprio plano desmente, porque cai antes do fim da construção ou a fase atual já está atrasada. CAB: Data CAB. “No mesmo dia” conta só homologações com data viável.</p></div>`;
   }
@@ -1615,18 +1631,26 @@ details.hist li + li { margin-top: 8px; }
   function renderArea(mf) {
     const m = estado.modeloArea || mf;
     const selA = estado.geral.area, selP = estado.geral.pi;
-    const pis = m.pis.map((p) => p.pi);
+    // linhas e colunas de todas as áreas e PIs da exportação, mesmo as que o filtro zerou
+    const base = estado.base ? estado.base.snap.demandas : m.ds;
+    const pis = [...new Set([...m.pis.map((p) => p.pi), ...base.map((d) => d.piPlan || 'Sem PI')])].sort((a, b) => a.localeCompare(b, 'pt', { numeric: true }));
+    const vazias = [...new Set(base.map((d) => d.area || 'Sem área'))].filter((a) => !m.areas.some((x) => x.area === a)).sort((a, b) => a.localeCompare(b, 'pt'))
+      .map((area) => ({ area, n: 0, porPI: {}, horas: 0, hMedia: null, abertas: 0, atrasadas: 0 }));
+    const areas = [...m.areas, ...vazias];
     const mx = Math.max(1, ...m.areas.flatMap((a) => pis.map((p) => a.porPI[p] || 0)));
     const tot = (f) => m.areas.reduce((s, a) => s + f(a), 0);
     const outros = FGERAL.filter(([k]) => k !== 'area' && k !== 'pi' && estado.geral[k]).map(([, rot]) => rot);
-    $('#secArea').innerHTML = secH('Área × PI', `demandas por PI planejado${estado.modeloArea ? ` · todas as áreas e PIs${outros.length ? ` com o filtro de ${lista(outros)}` : ''}, a seleção em destaque` : ''}`) + `<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Área</th>${pis.map((p) => `<th class="r${p === selP ? ' sel' : ''}">${esc(p)}</th>`).join('')}<th class="r">Total</th><th class="r">Horas estimadas</th><th class="r">h / demanda</th><th class="r">Abertas</th><th class="r">Atrasadas</th></tr></thead><tbody>${m.areas.map((a) =>
+    $('#secArea').innerHTML = secH('Área × PI', `demandas por PI planejado${estado.modeloArea ? ` · todas as áreas e PIs${outros.length ? ` com o filtro de ${lista(outros)}` : ''}, a seleção em destaque` : ''}`) + `<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Área</th>${pis.map((p) => `<th class="r${p === selP ? ' sel' : ''}">${esc(p)}</th>`).join('')}<th class="r">Total</th><th class="r">Horas estimadas</th><th class="r">h / demanda</th><th class="r">Abertas</th><th class="r">Atrasadas</th></tr></thead><tbody>${areas.map((a) =>
       `<tr${a.area === selA ? ' class="sel"' : ''}><td>${esc(a.area)}</td>${pis.map((p) => { const v = a.porPI[p] || 0; return `<td class="r heat${p === selP ? ' sel' : ''}" style="background:color-mix(in srgb, var(--heat) ${v ? Math.round(8 + (40 * v) / mx) : 0}%, transparent)">${v || '–'}</td>`; }).join('')}<td class="r"><b>${num(a.n)}</b></td><td class="r">${hh(a.horas)}</td><td class="r">${a.hMedia != null ? num(Math.round(a.hMedia)) : '–'}</td><td class="r">${num(a.abertas)}</td><td class="r">${a.atrasadas ? `<span class="st-critical">▲ ${num(a.atrasadas)}</span>` : '–'}</td></tr>`).join('')}
       <tr><td><b>Total</b></td>${pis.map((p) => `<td class="r${p === selP ? ' sel' : ''}"><b>${num(tot((a) => a.porPI[p] || 0))}</b></td>`).join('')}<td class="r"><b>${num(m.ds.length)}</b></td><td class="r"><b>${hh(m.horas.total)}</b></td><td class="r">${(() => { const c = m.ds.filter((d) => d.horas != null); return c.length ? num(Math.round(m.horas.total / c.length)) : '–'; })()}</td><td class="r"><b>${num(m.abertas.length)}</b></td><td class="r"><b>${num(m.st.atrasada || 0)}</b></td></tr></tbody></table></div></div>`;
   }
 
   const dec = (x) => Number(x).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // O PI fecha com todas as suas demandas: um recorte por Fase ou Sprint não diz quando ele chega a pronto.
+  const semFechamento = () => !!(estado.geral.fase || estado.geral.sprint);
   function renderPrevisao(m) {
     const p = m.previsao;
+    if (p && semFechamento()) { $('#secPrevisao').innerHTML = secH('Fechamento do PI', 'quando o PI chega a pronto') + '<div class="card card-p nota">O fechamento do PI não se lê com filtro de Fase ou Sprint: o PI fecha com todas as suas demandas. Tire esses filtros para ver.</div>'; return; }
     if (!p) { $('#secPrevisao').innerHTML = ''; return; }
     const b = p.base;
     const ultimoTxt = !p.ultimo ? 'último pronto planejado: nenhuma demanda do PI tem data de pronto'
@@ -1637,13 +1661,13 @@ details.hist li + li { margin-top: 8px; }
       : p.passou ? 'ritmo necessário: o último pronto planejado já passou' : 'ritmo necessário: sem data de pronto no PI';
     let ritmoTxt = 'ritmo real: precisa de uma medição (exportação ou referência) de 1 a 4 semanas antes do corte';
     if (b) {
-      ritmoTxt = `na esteira toda: de ${num(b.prontasOuConcluidas)} para ${num(p.agora)} prontas ou concluídas entre ${dt(b.corte)} (${esc(b.fonte || 'exportação')}) e ${dt(m.corte)}`;
+      ritmoTxt = `${temGeral() ? 'no recorte filtrado' : 'na esteira toda'}: de ${num(b.prontasOuConcluidas)} para ${num(p.agora)} prontas ou concluídas entre ${dt(b.corte)} (${esc(b.fonte || 'exportação')}) e ${dt(m.corte)}`;
       if (p.deltaPI != null) ritmoTxt += `. No próprio ${esc(p.pi)}: ${p.deltaPI > 0 ? '+' : ''}${num(p.deltaPI)} no período (${dec(p.ritmoPI)} por dia útil)${p.delta > 0 && p.deltaPI < p.delta ? `; as outras ${num(p.delta - p.deltaPI)} eram de outros PIs` : ''}`;
     }
     // A previsão é condicional e neutra: o ritmo é da esteira e o plano do PI pode estar incompleto.
     let prevTxt = p.ritmo == null ? 'previsão: precisa do ritmo real' : 'sem previsão: o número de prontas ou concluídas não subiu';
     if (p.prevista) {
-      prevTxt = `se a esteira inteira mantiver ${dec(p.ritmo)} por dia útil e trabalhar só no ${esc(p.pi)}`;
+      prevTxt = `se ${temGeral() ? 'o recorte filtrado' : 'a esteira inteira'} mantiver ${dec(p.ritmo)} por dia útil e trabalhar só no ${esc(p.pi)}`;
       if (p.previstaPI && p.previstaPI !== p.prevista) prevTxt += `. No ritmo do próprio ${esc(p.pi)} até agora: ${dt(p.previstaPI)}`;
       else if (p.deltaPI === 0) prevTxt += `. O ${esc(p.pi)} não ganhou nenhuma pronta no período`;
       if (p.planoIncompleto) prevTxt += `. Não dá para comparar com o plano: ${num(p.semPronto)} das ${num(p.faltam)} não têm data de pronto`;
@@ -1731,6 +1755,9 @@ details.hist li + li { margin-top: 8px; }
 
   function renderTodas(m) {
     const f = estado.filtro;
+    if (f.pi && !m.pis.some((p) => p.pi === f.pi)) f.pi = '';
+    if (f.area && !m.areas.some((a) => a.area === f.area)) f.area = '';
+    if (f.lacuna && !m.cadastro.some((x) => x.campo === f.lacuna)) f.lacuna = '';
     document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.etapa === f.etapa)));
     const pis = m.pis.map((p) => p.pi);
     const areas = m.areas.map((a) => a.area);
@@ -1809,9 +1836,13 @@ details.hist li + li { margin-top: 8px; }
       await estado.downloads.save({ filename: nome, data: new Blob([dados]) });
       aviso('Baixada ✓');
     } catch (e) {
-      if (e && e.code === 'declined') return;
-      if (e && e.code === 'rate_limited') { aviso('Aguarde e tente de novo'); return; }
-      aviso('Não deu para baixar aqui');
+      const cod = e && e.code;
+      if (cod === 'declined') return;
+      if (cod === 'rate_limited') { aviso('Aguarde e tente de novo'); return; }
+      if (['bad_request', 'transform_error', 'too_large', 'rejected_extension', 'extension_not_enabled'].includes(cod)) { aviso('Não deu para baixar aqui'); return; }
+      estado.downloads = null; // unavailable, not_granted, ciclo de vida ou código desconhecido
+      document.querySelectorAll('[data-baixar]').forEach((b) => { b.hidden = true; });
+      mostrarMsg('Baixar a planilha não está disponível nesta visualização do report.');
     }
   }
 
@@ -1848,7 +1879,7 @@ details.hist li + li { margin-top: 8px; }
       <p><b>Prazo planejado × real.</b> Real ≤ planejado nas datas de Refinamento, Construção, Homologação e Pronto. Só entram demandas com as duas datas preenchidas e com a data real até o corte: data real no futuro é plano copiado no campo real.</p>
       <p><b>PI.</b> PI Planning. Concluída no próprio PI: PI Entregue igual ao PI Planning. Carry-over: PI Entregue posterior. Horas: QtdHoras (estimativa).</p>
       <p><b>Pessoas.</b> Funcional e ABAP vêm no formato do SharePoint (nome;#id); fica o nome. Demanda com mais de uma pessoa conta para cada uma.</p>
-      <p><b>Riscos.</b> Crítico: mais de ${m.LIM.dias} dias além do prazo da fase (nas prontas sem CAB, contado do pronto planejado), ou bloqueada sem data de pronto, estimativa nem status report. Atenção: demanda acima de ${m.LIM.horas} h com prazo em até ${m.LIM.perto} dias ou pronta sem CAB; ${m.LIM.uatDia} ou mais homologações no mesmo dia para o mesmo responsável Acelen; pessoa-chave (${Math.round(m.LIM.fatia * 100)}% ou mais das abertas do papel e ${m.LIM.areas} áreas ou mais, um terço ou mais das atrasadas ou pico acima de ${m.LIM.cargaDia} h por dia útil). Info: abertas sem data na fase atual.</p>
+      <p><b>Riscos.</b> Crítico: mais de ${m.LIM.dias} dias além do prazo da fase (nas prontas sem CAB, contado do pronto planejado), ou bloqueada sem data de pronto, estimativa nem status report. Atenção: demanda acima de ${m.LIM.horas} h com prazo em até ${m.LIM.perto} dias ou pronta sem CAB; ${m.LIM.uatDia} ou mais homologações no mesmo dia para o mesmo responsável Acelen; pessoa-chave (${Math.round(m.LIM.fatia * 100)}% ou mais das abertas do papel e, além disso, ${m.LIM.areas} áreas ou mais — não vale para responsável Acelen, que por desenho responde por uma área —, um terço ou mais das atrasadas ou pico acima de ${m.LIM.cargaDia} h por dia útil; com filtro, medida na esteira toda); regra de avanço do PI ${m.regra.desdePI} em diante (data real da fase anterior em toda demanda que saiu do Backlog; horas, tamanho e Nº do Charm a partir da construção). Info: abertas sem data na fase atual.</p>
       <p><b>Planilha.</b> “Baixar planilha” em Todas as demandas leva as linhas do filtro da tabela (e do filtro do topo), em CSV com ponto e vírgula, datas dd/mm/aaaa e as lacunas de cadastro de cada demanda.</p>
       <p><b>Comparação.</b> Cada exportação carregada fica guardada com a data de corte. A seção de mudanças compara a exportação aberta com a anterior, demanda a demanda, pelo NumeroDemanda (e pelo título, quando o número se repete).</p>
     </div></div>`;
@@ -2002,36 +2033,55 @@ details.hist li + li { margin-top: 8px; }
   };
   const temGeral = () => FGERAL.some(([k]) => estado.geral[k]);
   const passaGeral = (d, ...exceto) => FGERAL.every(([k, , f]) => exceto.includes(k) || !estado.geral[k] || f(d) === estado.geral[k]);
-  const descricaoGeral = () => FGERAL.filter(([k]) => estado.geral[k]).map(([k, rot]) => (k === 'pi' ? estado.geral[k] : `${rot} ${estado.geral[k]}`)).join(' · ');
+  // "PI 4" e "Sprint 1" já dizem o nome do filtro; "Área F2F" e "Fase Em Construção" precisam dele
+  const descricaoGeral = () => FGERAL.filter(([k]) => estado.geral[k]).map(([k, rot]) => { const v = estado.geral[k]; return v.toLowerCase().includes(rot.toLowerCase()) ? v : `${rot} ${v}`; }).join(' · ');
 
   function renderFiltroGeral(snap, n) {
     const f = temGeral();
-    $('#secFiltro').innerHTML = `<div class="card fgeral">${FGERAL.map(([k, rot, val]) => {
+    $('#fgCampos').innerHTML = FGERAL.map(([k, rot, val]) => {
       const cont = Object.fromEntries(snap.demandas.map((d) => [val(d), 0]));
       snap.demandas.filter((d) => passaGeral(d, k)).forEach((d) => { cont[val(d)]++; });
       return `<label>${rot}<select data-geral="${k}"${estado.geral[k] ? ' class="ativo"' : ''}><option value="">Todas</option>${Object.keys(cont).sort(ORD_GERAL[k]).map((v) =>
         `<option value="${esc(v)}"${v === estado.geral[k] ? ' selected' : ''}${cont[v] ? '' : ' disabled'}>${esc(v)} (${num(cont[v])})</option>`).join('')}</select></label>`;
-    }).join('')}<span class="fg-conta" aria-live="polite">${f ? `${num(n)} de ${num(snap.demandas.length)} demandas` : `${num(snap.demandas.length)} demandas, sem filtro`}</span>${f ? '<button type="button" class="btn btn-out btn-sm" data-geral-limpar>Limpar filtros</button><p class="fg-nota">O report inteiro, da faixa ao cadastro, mostra só essas demandas. Sprint é o Sprint real (Sprint Pronto/Em Encerramento). A referência do board vale para a esteira toda: enquanto houver filtro, o ritmo do fechamento do PI usa só as exportações guardadas.</p>' : ''}</div>`;
+    }).join('');
+    $('#fgConta').textContent = f ? `${num(n)} de ${num(snap.demandas.length)} demandas` : `${num(snap.demandas.length)} demandas, sem filtro`;
+    $('#fgAcoes').innerHTML = `${f ? '<button type="button" class="btn btn-out btn-sm" data-geral-limpar>Limpar filtros</button><p class="fg-nota">O report inteiro, da faixa ao cadastro, mostra só essas demandas, menos Área × PI, que mantém todas as áreas e PIs com a seleção em destaque. Sprint é o Sprint real (Sprint Pronto/Em Encerramento). A referência do board vale para a esteira toda: enquanto houver filtro, o ritmo do fechamento do PI usa só as exportações guardadas. Pessoa-chave continua medida na esteira toda.</p>' : ''}`;
   }
 
   async function recalcular() {
+    const vez = ++estado.vez; // só a última chamada desenha: a anterior pode terminar depois
     const { snap, ant } = estado.base;
-    let ds = snap.demandas.filter((d) => passaGeral(d));
-    if (!ds.length) { estado.geral = { area: '', pi: '', sprint: '', fase: '' }; ds = snap.demandas; } // outra exportação sem aquele valor
+    // valor que não existe nesta exportação (troca de exportação) sai do filtro, com aviso
+    const fora = FGERAL.filter(([k, , val]) => estado.geral[k] && !snap.demandas.some((d) => val(d) === estado.geral[k]));
+    if (fora.length) {
+      mostrarMsg(`${lista(fora.map(([k, rot]) => `${rot} ${estado.geral[k]}`))} não ${fora.length === 1 ? 'existe' : 'existem'} na exportação de ${dt(snap.corte, true)}: ${fora.length === 1 ? 'saiu' : 'saíram'} do filtro.`);
+      fora.forEach(([k]) => { estado.geral[k] = ''; });
+    }
+    const total = E.analisar(snap, ant, pontos());
+    let ds = total.ds.filter((d) => passaGeral(d));
+    if (!ds.length) { estado.geral = { area: '', pi: '', sprint: '', fase: '' }; ds = total.ds; }
     renderFiltroGeral(snap, ds.length);
+    if (!temGeral()) { estado.modeloArea = null; render(total); return; }
     // Área × PI fica com todas as áreas e PIs: calculada sem os filtros de Área e PI, com a seleção destacada
-    estado.modeloArea = estado.geral.area || estado.geral.pi ? E.analisar({ ...snap, demandas: snap.demandas.filter((d) => passaGeral(d, 'area', 'pi')) }, null, []) : null;
-    if (!temGeral()) { render(E.analisar(snap, ant, pontos())); return; }
-    // anterior: as mesmas demandas de agora, mais as que passavam no filtro e saíram da lista
-    const ids = new Set(ds.map((d) => String(d.id)));
-    const todos = new Set(snap.demandas.map((d) => String(d.id)));
-    const antF = ant && { ...ant, demandas: ant.demandas.filter((d) => ids.has(String(d.id)) || (passaGeral(d) && !todos.has(String(d.id)))) };
+    estado.modeloArea = E.analisar({ ...snap, demandas: total.ds.filter((d) => passaGeral(d, 'area', 'pi')) }, null, []);
+    // comparação: a da esteira toda (o par de cada demanda não muda com o filtro), só com as demandas
+    // que passam no filtro agora ou passavam na exportação anterior
+    let delta = null;
+    if (total.delta) {
+      const antes = total.delta.anteriorDe;
+      const itens = total.delta.itens.filter((x) => passaGeral(x.d) || (x.tipo !== 'saiu' && antes.has(x.d) && passaGeral(antes.get(x.d))));
+      delta = { ...total.delta, itens, conta: itens.reduce((o, x) => { o[x.tipo] = (o[x.tipo] || 0) + 1; return o; }, {}), demandas: new Set(itens.map((x) => x.d)).size };
+    }
+    // pessoa-chave é medida na esteira toda; no recorte aparecem as que têm demanda aberta nele
+    const abertasF = ds.filter((d) => !['concluida', 'cancelada', 'desconhecida'].includes(d.st));
+    const pessoasChave = total.pessoasChave.filter((x) => abertasF.some((d) => [].concat(d[x.papel] || []).includes(x.nome)));
     // ritmo: exportações da janela, filtradas do mesmo jeito
     const c = E.dia(snap.corte);
     const janela = estado.exportacoes.filter((x) => x.corte < snap.corte && c - E.dia(x.corte) <= 28);
     const lidas = (await Promise.all(janela.map((x) => snapDe(x.id).catch(() => null)))).filter(Boolean);
+    if (vez !== estado.vez) return;
     const pts = lidas.map((x) => ({ corte: x.corte, ...E.resumo({ ...x, demandas: x.demandas.filter((d) => passaGeral(d)) }), fonte: 'exportação' })).filter(ehPonto);
-    render(E.analisar({ ...snap, demandas: ds }, antF && antF.demandas.length ? antF : null, pts));
+    render(E.analisar({ ...snap, demandas: ds }, null, pts, { delta, pessoasChave }));
   }
 
   function atualizarSeletor() {
@@ -2071,6 +2121,7 @@ details.hist li + li { margin-top: 8px; }
     renderTodas(estado.modelo);
     const tr = document.querySelector(`tr.lin[data-k="${CSS.escape(chave)}"]`);
     if (tr) { tr.scrollIntoView({ behavior: 'smooth', block: 'center' }); tr.querySelector('.exp').focus({ preventScroll: true }); }
+    else if (temGeral()) mostrarMsg(`A demanda ${chave.split('~')[0]} está fora do filtro do topo: limpe o filtro para vê-la na tabela.`);
   }
   function irParaTabela() {
     estado.todasAberta = true;
