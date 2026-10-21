@@ -148,11 +148,28 @@ a:hover { color: var(--link-hover); }
 main.wrap { padding-block: 28px 56px; display: grid; gap: 28px; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
 .indice { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--border); }
-.indice .wrap { display: flex; gap: 4px 18px; overflow-x: auto; padding-block: 10px; font-size: 13px; white-space: nowrap; }
-.indice a { color: var(--ink-2); }
-.indice a:hover { color: var(--link); }
-.bloco { font-size: 12px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--link); padding-top: 10px; border-top: 2px solid var(--border); margin-bottom: -10px; scroll-margin-top: 56px; }
-section, h2[id] { scroll-margin-top: 64px; }
+.indice .menu { display: flex; gap: 10px; overflow-x: auto; padding-block: 10px; align-items: stretch; }
+.tile { flex: 1 0 150px; display: grid; gap: 3px; align-content: start; padding: 9px 13px 10px; border: 1px solid var(--border); border-top: 3px solid var(--tom, var(--border)); border-radius: 8px; background: var(--surface); color: var(--ink-1); text-decoration: none; min-width: 0; }
+.tile:hover { border-color: var(--link); border-top-color: var(--tom, var(--link)); }
+.tile:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.tile[aria-current="true"] { border-color: var(--on-track); box-shadow: inset 0 0 0 1px var(--on-track); background: color-mix(in srgb, var(--on-track) 7%, var(--surface)); }
+.tile .rot { font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile b { font: 700 17px/1.15 var(--font-display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile small { font-size: 11.5px; line-height: 1.35; color: var(--ink-2); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.tile.t-crit { --tom: var(--critical); } .tile.t-crit b { color: var(--critical); }
+.tile.t-warn { --tom: var(--warn-ink); } .tile.t-warn b { color: var(--warn-ink); }
+.tile.t-ok { --tom: var(--on-track); } .tile.t-ok b { color: var(--on-track); }
+.dobras { display: flex; flex-direction: column; justify-content: center; gap: 4px; flex: 0 0 auto; }
+.dobras button { background: none; border: 1px solid var(--border-input); border-radius: 999px; padding: 4px 12px; font-size: 12px; color: var(--link); cursor: pointer; white-space: nowrap; }
+.dobras button:hover { border-color: var(--link); }
+.dobra { background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; letter-spacing: inherit; cursor: pointer; display: inline-flex; align-items: baseline; gap: 8px; text-align: left; border-radius: 4px; }
+.dobra:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; }
+.dobra i { font-style: normal; font-size: 11px; color: var(--ink-2); display: inline-block; transition: transform .15s; }
+section.fechada .dobra i { transform: rotate(-90deg); }
+section.fechada:has(> .sec-h) > :not(.sec-h) { display: none !important; }
+section.fechada > .sec-h { margin-bottom: 0; padding-bottom: 4px; }
+.bloco { font-size: 12px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--link); padding-top: 10px; border-top: 2px solid var(--border); margin-bottom: -10px; scroll-margin-top: 124px; }
+section, h2[id] { scroll-margin-top: 132px; }
 section { min-width: 0; }
 .sec-h { display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .sec-h h2 { font-size: 17px; font-weight: 600; }
@@ -348,6 +365,7 @@ details.hist li + li { margin-top: 8px; }
 @media (max-width: 640px) {
   .leitura li { grid-template-columns: 1fr; }
   .fgeral label { flex: 1 1 140px; }
+  .tile { flex: 0 0 146px; }
   .riscos li { grid-template-columns: 1fr; }
   .prox, .prox tbody, .prox tr.grp, .prox tr.grp td { display: block; }
   .prox thead { display: none; }
@@ -394,7 +412,7 @@ details.hist li + li { margin-top: 8px; }
         <span><span class="lk-name">avvale</span><span class="lk-sig">Project portfolio</span></span>
       </div>
       <div class="topo-acts">
-        <span class="versao" id="versao" title="Versão do report">versão 6.2</span>
+        <span class="versao" id="versao" title="Versão do report">versão 6.3</span>
         <label class="sel-exp" id="selExpRot" hidden>Exportação <select id="selExp"></select></label>
       </div>
     </div>
@@ -416,7 +434,7 @@ details.hist li + li { margin-top: 8px; }
   </div>
 </header>
 
-<nav class="indice" id="indice" aria-label="Seções" hidden><div class="wrap"><a href="#esta-semana">Esta semana</a><a href="#andamento">Como a esteira anda</a><a href="#cadastro">Cadastro</a><a href="#todas">Todas as demandas</a><a href="#metodo">Como os números são calculados</a></div></nav>
+<nav class="indice" id="indice" aria-label="Seções" hidden><div class="wrap menu" id="menu"></div></nav>
 
 <main class="wrap">
   <section id="vazio" class="card vazio">
@@ -434,32 +452,32 @@ details.hist li + li { margin-top: 8px; }
 
   <div id="app" hidden style="display:contents">
     <section id="secFiltro" aria-label="Filtro do report"><div class="card fgeral"><span id="fgCampos" style="display:contents"></span><span class="fg-conta" id="fgConta" aria-live="polite"></span><span id="fgAcoes" style="display:contents"></span></div></section>
-    <section id="secLeitura"></section>
-    <section id="secDelta"></section>
-    <section id="secKpi"></section>
+    <section id="secLeitura" class="dobravel"></section>
+    <section id="secDelta" class="dobravel"></section>
+    <section id="secKpi" class="dobravel"></section>
     <h2 class="bloco" id="esta-semana" tabindex="-1">Esta semana</h2>
-    <section id="secRisco"></section>
-    <section id="secAcao"></section>
-    <section id="secProximas"></section>
+    <section id="secRisco" class="dobravel"></section>
+    <section id="secAcao" class="dobravel"></section>
+    <section id="secProximas" class="dobravel"></section>
     <div class="grid2">
-      <section id="secCarga"></section>
-      <section id="secPessoas"></section>
+      <section id="secCarga" class="dobravel"></section>
+      <section id="secPessoas" class="dobravel"></section>
     </div>
-    <section id="secPrevisao"></section>
+    <section id="secPrevisao" class="dobravel"></section>
     <h2 class="bloco" id="andamento" tabindex="-1">Como a esteira anda</h2>
     <div class="grid2">
-      <section id="secPrazo"></section>
-      <section id="secLead"></section>
+      <section id="secPrazo" class="dobravel"></section>
+      <section id="secLead" class="dobravel"></section>
     </div>
     <div class="grid2">
-      <section id="secPi"></section>
-      <section id="secCab"></section>
+      <section id="secPi" class="dobravel"></section>
+      <section id="secCab" class="dobravel"></section>
     </div>
-    <section id="secArea"></section>
-    <section id="secQualidade"></section>
+    <section id="secArea" class="dobravel"></section>
+    <section id="secQualidade" class="dobravel"></section>
     <h2 class="bloco" id="cadastro" tabindex="-1">Cadastro</h2>
-    <section id="secDado"></section>
-    <section id="secTodas"></section>
+    <section id="secDado" class="dobravel"></section>
+    <section id="secTodas" class="dobravel"></section>
     <section id="secMetodo"></section>
   </div>
 </main>
@@ -1259,6 +1277,7 @@ details.hist li + li { margin-top: 8px; }
     $('#app').style.display = 'contents';
     $('#indice').hidden = false;
     renderBanda(m);
+    renderMenu(m);
     renderLeitura(m);
     renderDelta(m);
     renderKpi(m);
@@ -1339,6 +1358,48 @@ details.hist li + li { margin-top: 8px; }
 
   const ROT_DELTA = { concluida: ['concluída', 'concluídas'], fase: ['mudou de fase', 'mudaram de fase'], subfase: ['mudou de subfase', 'mudaram de subfase'], pi: ['mudou de PI', 'mudaram de PI'], pessoa: ['troca de responsável', 'trocas de responsável'], replan: ['data replanejada', 'datas replanejadas'], atrasou: ['passou a atrasar', 'passaram a atrasar'], nova: ['nova na lista', 'novas na lista'], saiu: ['saiu da lista', 'saíram da lista'], apagada: ['data apagada', 'datas apagadas'], saiuAtraso: ['saiu do atraso sem andar', 'saíram do atraso sem andar'] };
   const ORDEM_DELTA = ['concluida', 'fase', 'subfase', 'pi', 'replan', 'apagada', 'saiuAtraso', 'pessoa', 'atrasou', 'nova', 'saiu'];
+
+  // ---------- menu em botões: cada bloco com o número que o resume ----------
+  function renderMenu(m) {
+    const ab = m.abertas.length, atr = m.st.atrasada || 0;
+    const acao = m.acao.reduce((s, g) => s + g.itens.length, 0);
+    const crit = m.riscos.filter((r) => r.nivel === 'critico').reduce((s, r) => s + r.itens.length, 0);
+    const pz = m.leitura.prazo && m.leitura.prazo.pior;
+    const tile = (href, rot, valor, sub, tom) => `<a class="tile${tom ? ` t-${tom}` : ''}" href="${href}"><span class="rot">${rot}</span>${valor ? `<b>${valor}</b>` : ''}<small>${sub}</small></a>`;
+    $('#menu').innerHTML = [
+      tile('#secFiltro', 'Visão geral', pl(atr, 'atrasada', 'atrasadas'), `de ${pl(ab, 'aberta', 'abertas')} · ${num(m.concl.length)} em produção`, atr ? 'crit' : 'ok'),
+      tile('#esta-semana', 'Esta semana', `${num(acao)} pedem ação`, `${pl(crit, 'em risco crítico', 'em risco crítico')} · ${num(m.proximas.length)} nas próximas 6 semanas`, crit ? 'crit' : acao ? 'warn' : 'ok'),
+      tile('#andamento', 'Como a esteira anda', pz ? `${pct(pz.ok, pz.n)}% no prazo` : `${pl(m.pis.length, 'PI', 'PIs')}`, pz ? `pior fase: ${pz.nome.toLowerCase()} · ${num(pz.ok)} de ${num(pz.n)}` : 'sem medição de prazo', pz ? (pz.ok * 10 >= pz.n * 9 ? 'ok' : 'warn') : ''),
+      tile('#cadastro', 'Cadastro', pl(m.cadastro.length, 'lacuna', 'lacunas'), 'campos que impedem uma leitura completa', m.cadastro.length ? 'warn' : 'ok'),
+      tile('#todas', 'Todas as demandas', num(m.ds.length), `${pl(ab, 'aberta', 'abertas')} · ${pl(m.concl.length, 'concluída', 'concluídas')}`, ''),
+      tile('#metodo', 'Método', '', 'como os números são calculados', ''),
+    ].join('') + '<span class="dobras"><button type="button" data-dobras="abrir">Abrir tudo</button><button type="button" data-dobras="fechar">Fechar tudo</button></span>';
+    marcarMenu();
+  }
+  // o botão do bloco que está na tela fica marcado
+  function marcarMenu() {
+    const tiles = [...document.querySelectorAll('#menu .tile')];
+    if (!tiles.length) return;
+    let atual = tiles[0];
+    tiles.forEach((a) => { const el = document.querySelector(a.getAttribute('href')); if (el && el.getBoundingClientRect().top < 170) atual = a; });
+    tiles.forEach((a) => a.setAttribute('aria-current', String(a === atual)));
+  }
+
+  // ---------- seções recolhíveis ----------
+  // O título vira botão; a seção fechada mostra só o título e o resumo ao lado. Fechar e abrir fica
+  // guardado neste navegador (conveniência de quem vê, não dado do report).
+  const CHAVE_FECHADAS = 'esteira-acelen:fechadas';
+  const guardarFechadas = () => { try { localStorage.setItem(CHAVE_FECHADAS, JSON.stringify([...document.querySelectorAll('section.dobravel.fechada')].map((x) => x.id))); } catch { /* sem armazenamento: vale só nesta visita */ } };
+  function prepararDobra(sec) {
+    const h2 = sec.querySelector(':scope > .sec-h > h2');
+    if (!h2 || h2.querySelector('.dobra')) return;
+    h2.innerHTML = `<button type="button" class="dobra" aria-expanded="${!sec.classList.contains('fechada')}"><i aria-hidden="true">▾</i><span>${h2.innerHTML}</span></button>`;
+  }
+  function dobrar(sec, fechar) {
+    sec.classList.toggle('fechada', fechar);
+    const b = sec.querySelector('.dobra');
+    if (b) b.setAttribute('aria-expanded', String(!fechar));
+  }
 
   // ---------- leitura da semana: frases de modelo fixo, preenchidas por regra ----------
   const NA = { Refinamento: 'no refinamento', Construção: 'na construção', Homologação: 'na homologação', Pronto: 'no pronto' };
@@ -1899,6 +1960,7 @@ details.hist li + li { margin-top: 8px; }
       <p><b>Riscos.</b> Crítico: mais de ${m.LIM.dias} dias além do prazo da fase (nas prontas sem CAB, contado do pronto planejado), ou bloqueada sem data de pronto, estimativa nem status report. Atenção: demanda acima de ${m.LIM.horas} h com prazo em até ${m.LIM.perto} dias ou pronta sem CAB; ${m.LIM.uatDia} ou mais homologações no mesmo dia para o mesmo responsável Acelen; pessoa-chave (${Math.round(m.LIM.fatia * 100)}% ou mais das abertas do papel e, além disso, ${m.LIM.areas} áreas ou mais — não vale para responsável Acelen, que por desenho responde por uma área —, um terço ou mais das atrasadas ou pico acima de ${m.LIM.cargaDia} h por dia útil; com filtro, medida na esteira toda); regra de avanço do PI ${m.regra.desdePI} em diante (data real da fase anterior em toda demanda que saiu do Backlog; horas, tamanho e Nº do Charm a partir da construção). Info: abertas sem data na fase atual.</p>
       <p><b>Farol</b> (Todas as demandas e planilha). Atrasado: a data que encerra a fase passou (inclusive com a data real lançada e a fase por atualizar, ou a CAB vencida) ou a demanda está bloqueada. Atenção: vence em até 7 dias ou está sem data na fase atual, Pré Projeto incluído. No prazo: os demais casos e as concluídas. Conclusão fase atual: a data planejada que encerra a fase; na concluída, a Data de Entrega Pronto planejada. Baseline: Sprint Baseline Pronto/Em Encerramento.</p>
       <p><b>Planilha.</b> “Baixar planilha” em Todas as demandas leva as linhas do filtro da tabela (e do filtro do topo), em CSV com ponto e vírgula e datas dd/mm/aaaa. As dez primeiras colunas são as da tabela; depois vêm marco e dias até a conclusão, subfase, situação e motivo, Sprint real, Funcional, ABAP, status report e as lacunas de cadastro de cada demanda.</p>
+      <p><b>Navegação.</b> O menu de cima leva a cada bloco e mostra o número que o resume. Cada seção abre e fecha pelo título; na primeira visita todas começam fechadas, mostrando só o título e o resumo ao lado, e depois voltam como cada pessoa deixou neste navegador.</p>
       <p><b>Comparação.</b> Cada exportação carregada fica guardada com a data de corte. A seção de mudanças compara a exportação aberta com a anterior, demanda a demanda, pelo NumeroDemanda (e pelo título, quando o número se repete).</p>
     </div></div>`;
   }
@@ -2133,6 +2195,7 @@ details.hist li + li { margin-top: 8px; }
   }
 
   function abrirDemanda(chave) {
+    dobrar($('#secTodas'), false);
     estado.filtro = { st: 'todas', pi: '', area: '', etapa: '', q: '', lacuna: '' };
     estado.abertas.add(chave);
     renderTodas(estado.modelo);
@@ -2141,6 +2204,7 @@ details.hist li + li { margin-top: 8px; }
     else if (temGeral()) mostrarMsg(`A demanda ${chave.split('~')[0]} está fora do filtro do topo: limpe o filtro para vê-la na tabela.`);
   }
   function irParaTabela() {
+    dobrar($('#secTodas'), false);
     renderTodas(estado.modelo);
     $('#secTodas').scrollIntoView({ behavior: 'smooth', block: 'start' });
     $('#todas').focus({ preventScroll: true });
@@ -2154,6 +2218,11 @@ details.hist li + li { margin-top: 8px; }
 
   document.addEventListener('click', (e) => {
     const t = e.target;
+    const dob = t.closest('.dobra');
+    if (dob) { const sec = dob.closest('section'); dobrar(sec, !sec.classList.contains('fechada')); guardarFechadas(); return; }
+    const todasDob = t.closest('[data-dobras]');
+    if (todasDob) { document.querySelectorAll('section.dobravel').forEach((x) => dobrar(x, todasDob.dataset.dobras === 'fechar')); guardarFechadas(); return; }
+    if (t.closest('.tile[href="#todas"]')) dobrar($('#secTodas'), false);
     const irSt = t.closest('[data-ir-st]');
     if (irSt) { estado.filtro = { st: irSt.dataset.irSt, pi: '', area: '', etapa: '', q: '', lacuna: '' }; document.querySelectorAll('.cap').forEach((c) => c.setAttribute('aria-pressed', 'false')); irParaTabela(); return; }
     const abrir = t.closest('[data-abrir]');
@@ -2223,6 +2292,16 @@ details.hist li + li { margin-top: 8px; }
     e.preventDefault(); arrastando = 0; $('#drop').hidden = true;
     lerArquivo(e.dataTransfer.files[0]);
   });
+
+  // seções: na primeira visita (nada guardado) todas começam fechadas, decisão do Ricardo; depois, voltam
+  // como a pessoa deixou. Cada vez que uma seção é redesenhada, o título vira botão de novo.
+  let salvas = null;
+  try { const x = localStorage.getItem(CHAVE_FECHADAS); salvas = x == null ? null : JSON.parse(x); } catch { salvas = null; }
+  document.querySelectorAll('section.dobravel').forEach((x) => { if (!Array.isArray(salvas) || salvas.includes(x.id)) x.classList.add('fechada'); });
+  const obsDobra = new MutationObserver((ms) => ms.forEach((x) => prepararDobra(x.target)));
+  document.querySelectorAll('section.dobravel').forEach((x) => obsDobra.observe(x, { childList: true }));
+  let menuPendente = false;
+  addEventListener('scroll', () => { if (menuPendente) return; menuPendente = true; requestAnimationFrame(() => { menuPendente = false; marcarMenu(); }); }, { passive: true });
 
   // dica de valor nas barras
   const tip = $('#tip');

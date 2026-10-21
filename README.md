@@ -33,6 +33,14 @@ Encerramento). Área × PI continua com todas as áreas e PIs, com a seleção e
 - com filtro de Fase ou Sprint, o Fechamento do PI não aparece: o PI fecha com todas as suas demandas;
 - pessoa-chave continua medida na esteira toda.
 
+## Navegação
+
+O menu de cima tem um botão por bloco (Visão geral, Esta semana, Como a esteira anda, Cadastro, Todas as
+demandas, Método), cada um com o número que o resume, e marca o bloco que está na tela. Cada seção abre e
+fecha pelo título; na primeira visita todas começam fechadas (só título e resumo) e depois voltam como a
+pessoa deixou, guardado no navegador dela. "Abrir tudo" e "Fechar tudo" ficam no fim do menu. Clicar num
+código, num filtro de situação ou em "Ver as N" abre Todas as demandas.
+
 ## Regras que o report aplica
 
 - **Prazo de demanda aberta** = a data planejada que encerra a fase atual
