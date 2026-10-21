@@ -97,6 +97,7 @@ a:hover { color: var(--link-hover); }
 .lk-name { font: 700 19px/1 var(--font-display); letter-spacing: -0.01em; }
 .lk-sig { display: block; margin-top: 4px; font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--on-dark-3); }
 .topo-acts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.versao { font-size: 11.5px; letter-spacing: .04em; color: var(--on-dark-1); background: rgba(14, 17, 19, .45); border: 1px solid rgba(255, 255, 255, .28); border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
 .sel-exp { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--on-dark-3); }
 .sel-exp select { background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .22); color: var(--on-dark-1); border-radius: 999px; padding: 6px 12px; }
 .sel-exp option { color: #060A0D; }
@@ -327,6 +328,7 @@ details.hist li + li { margin-top: 8px; }
         <span><span class="lk-name">avvale</span><span class="lk-sig">Project portfolio</span></span>
       </div>
       <div class="topo-acts">
+        <span class="versao" id="versao" title="Versão do report">versão 5</span>
         <label class="sel-exp" id="selExpRot" hidden>Exportação <select id="selExp"></select></label>
       </div>
     </div>
@@ -949,6 +951,11 @@ details.hist li + li { margin-top: 8px; }
     semdata: ['—', 'Sem data', 'no-data'], semcab: ['—', 'Sem CAB', 'no-data'], aguardando: ['○', 'Aguardando planejamento', 'no-data'], bloqueada: ['❙❙', 'Bloqueada', 'delayed'],
     concluida: ['▣', 'Concluída', 'on-hold'], cancelada: ['✕', 'Cancelada', 'on-hold'],
   };
+  const PLURAL = {
+    atrasada: ['atrasada', 'atrasadas'], vence: ['vence em 7 dias', 'vencem em 7 dias'], noprazo: ['no prazo', 'no prazo'],
+    semdata: ['sem data', 'sem data'], semcab: ['sem CAB', 'sem CAB'], aguardando: ['aguardando planejamento', 'aguardando planejamento'],
+    bloqueada: ['bloqueada', 'bloqueadas'],
+  };
   const stTag = (st, extra) => `<span class="st st-${ST[st][2]}"><i aria-hidden="true">${ST[st][0]}</i> ${ST[st][1]}${extra ? ` <em>· ${esc(extra)}</em>` : ''}</span>`;
   const prazoTxt = (d) => {
     if (d.prazo) return `${d.marco} ${dt(d.prazo)} · ${rel(d.dias)}`;
@@ -1077,7 +1084,7 @@ details.hist li + li { margin-top: 8px; }
         { n: enc, cor: 'var(--critical-bg)', tip: `${enc} com a CAB já passada` }, { n: impl, cor: 'var(--at-risk)', tip: `${impl} com CAB agendada` }, { n: prep, cor: 'var(--no-data)', tip: `${prep} sem CAB` }], 'Prontas por situação da CAB')}
         <span class="meta">${[enc && `<span class="st-critical">▲ ${num(enc)} com a CAB vencida</span>`, impl && `<span class="st-at-risk">◐ ${num(impl)} com CAB agendada</span>`, prep && `— ${num(prep)} sem CAB`].filter(Boolean).join(' · ') || 'nenhuma pronta parada'}</span></div>`,
       `<div class="card kpi" style="--strip:linear-gradient(90deg,#5C65C4,#D42A2A)"><span class="rot">Abertas fora do prazo</span><div class="val"><b>${num(m.st.atrasada || 0)}</b><span>de ${num(ab)} abertas</span></div>${barra(ordemSt.map((k) => ({ n: m.st[k] || 0, cor: COR_ST[k], tip: `${m.st[k] || 0} · ${ST[k][1]}` })), 'Abertas por situação de prazo')}
-        <span class="meta">${ordemSt.filter((k) => m.st[k]).map((k) => `<span class="st-${ST[k][2]}">${ST[k][0]} ${num(m.st[k])} ${ST[k][1].toLowerCase().replace('cab', 'CAB')}</span>`).join(' · ')}</span></div>`,
+        <span class="meta">${ordemSt.filter((k) => m.st[k]).map((k) => `<span class="st-${ST[k][2]}">${ST[k][0]} ${num(m.st[k])} ${PLURAL[k][m.st[k] === 1 ? 0 : 1]}</span>`).join(' · ')}</span></div>`,
       p ? `<div class="card kpi" style="--strip:linear-gradient(90deg,#AED47E,#4DB5A3)"><span class="rot">${esc(p.pi)} · o PI mais recente</span><div class="val"><b>${num(p.n)}</b><span>${p.n === 1 ? 'demanda' : 'demandas'} · ${num(p.concl)} ${p.concl === 1 ? 'concluída' : 'concluídas'}</span></div>${barra(E.ESTAGIOS.map((s) => ({ n: p.est[s.k] || 0, cor: COR_ESTAGIO[s.k], tip: `${p.est[s.k] || 0} · ${s.nome}` })), `${p.pi} por estágio`)}
         <span class="meta">${p.atrasadas ? `<span class="st-critical">▲ ${num(p.atrasadas)} ${p.atrasadas === 1 ? 'atrasada' : 'atrasadas'}</span> · ` : ''}${num(p.semdata)} sem data na fase · ${num(p.semEst)} sem estimativa de horas</span></div>` : '',
     ];
@@ -1293,6 +1300,7 @@ details.hist li + li { margin-top: 8px; }
     const s = m.snap;
     const quando = new Date(s.exportadoEm);
     $('#secMetodo').innerHTML = secH('Como os números são calculados') + `<div class="card"><div class="metodo">
+      <p><b>Versão do report.</b> ${esc($('#versao').textContent)}.</p>
       <p><b>Fonte.</b> ${esc(s.arquivo || 'exportação')} · ${pl(s.total, 'linha', 'linhas')} · exportada em ${dt(s.corte, true)}, ${quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: E.FUSO })} (Brasília)${s.autor ? ` por ${esc(s.autor)}` : ''}. ${s.colunasAusentes.length ? `Colunas ausentes no arquivo: ${s.colunasAusentes.map(esc).join(', ')}.` : 'Todas as colunas esperadas estão no arquivo.'}</p>
       <p><b>Data de corte.</b> A data em que a planilha foi exportada (${dt(s.corte, true)}), não a data de hoje. Todo “passou da data” e “vence em 7 dias” é contado a partir dela.</p>
       <p><b>Prazo da demanda aberta.</b> A data planejada que encerra a fase atual: Backlog → Data de Início; Em Refinamento → Data de Entrega Refinamento; Em Construção → Data de Entrega Construção; Em Homologação → Data de Entrega Homologação; Pronto/Em Encerramento → Data CAB. Sem essa data, a demanda fica “sem data” e não entra na conta de atraso.</p>
