@@ -20,6 +20,15 @@ Aberto direto do disco, o `index.html` lê o arquivo no navegador e não guarda 
 Fica fora do build do Vite e do lint (só entram `index.html` da raiz e `src/`). Nada aqui
 lê ou escreve no Supabase do PPMA.
 
+## Filtro
+
+Acima da Leitura da semana: **Área · PI · Sprint · Fase**, em cascata. O report inteiro é recalculado
+sobre as demandas que passam. Cada lista mostra todos os valores da exportação e conta só o que passa
+nos outros filtros; valor com 0 fica desabilitado. Sprint é o **Sprint real** (Sprint Pronto/Em
+Encerramento). Área × PI continua com todas as áreas e PIs, com a seleção em destaque. Com filtro, a
+comparação com a exportação anterior olha as mesmas demandas, e o ritmo do fechamento do PI usa só as
+exportações guardadas: a referência do board vale para a esteira toda.
+
 ## Regras que o report aplica
 
 - **Prazo de demanda aberta** = a data planejada que encerra a fase atual
@@ -54,8 +63,20 @@ lê ou escreve no Supabase do PPMA.
 - **Carga até a construção**: horas Funcional/ABAP das demandas em Backlog, Em Refinamento e
   Em Construção ÷ dias úteis até a última data de fim de construção da pessoa. É teto, não saldo:
   a lista não tem horas apontadas.
-- **Agenda de homologação**: Data de Entrega Homologação das demandas que ainda não homologaram,
-  6 semanas à frente, por responsável Acelen.
+- **Próximas 6 semanas**: uma linha por demanda aberta (fora as bloqueadas) com fim de fase (Data de
+  Início, Data de Entrega Refinamento ou Construção), homologação (Data de Entrega Homologação das que
+  ainda não homologaram) ou Data CAB nos próximos 42 dias; no topo, as homologações por responsável
+  Acelen, com 2 ou mais no mesmo dia em destaque.
+- **Riscos**, com os limites em `LIM` no núcleo. Crítico: mais de 30 dias além do prazo da fase (pronta
+  sem CAB conta do pronto planejado); bloqueada sem data de pronto, estimativa nem status report.
+  Atenção: acima de 160 h com prazo em até 14 dias ou pronta sem CAB; 3 ou mais homologações no mesmo
+  dia para o mesmo responsável Acelen; pessoa-chave (20% ou mais das abertas do papel e 3 áreas ou mais —
+  fora responsável Acelen —, um terço ou mais das atrasadas ou pico de carga acima de 8 h por dia útil);
+  regra de avanço do PI 4. Info: abertas sem data na fase atual.
+- **Regra de avanço do PI 4 em diante** (decisão do board de 28/09/2026): a data real da fase anterior em
+  toda demanda que saiu do Backlog; horas, tamanho e Nº do Charm a partir da construção.
+- **Planilha**: "Baixar planilha (.csv)" em Todas as demandas leva as linhas dos dois filtros, com `;`,
+  BOM e datas dd/mm/aaaa. No artifact sai pela capacidade `downloads`.
 - **Tempo real de entrega**: Data Início Real até Data Concluído Real (ou Data CAB), nas concluídas;
   mediana e 85%.
 
@@ -67,6 +88,7 @@ node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle         
 node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-subfase  # demanda na subfase errada: precisa reprovar
 node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-calculo  # conta de carga errada: precisa reprovar
 node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-leitura  # cobertura e pedido errados: precisa reprovar
+node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-riscos   # próximas, risco e regra do PI 4 errados: precisa reprovar
 ```
 
 O verificador roda o mesmo `<script id="nucleo">` da página e confere a subfase de cada demanda
