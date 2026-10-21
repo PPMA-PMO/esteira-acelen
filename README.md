@@ -2,8 +2,8 @@
 
 Report da esteira de melhorias SAP da Acelen, calculado da exportação da lista
 **Cadastro de Melhorias** (SharePoint). Uma página só (`index.html`), desenho PPMA v2 (os tokens de
-`design/tokens-v2.css` do PPMA vêm copiados dentro da página), sem dependência e sem dado da Acelen
-dentro do repositório.
+`design/tokens-v2.css` do PPMA vêm copiados dentro da página), sem biblioteca (só a fonte Archivo vem
+do Google Fonts, com Arial de reserva) e sem dado da Acelen dentro do repositório.
 
 Publicado em https://claude.ai/artifact/Qkiyaov1fzmR1eHNp2KqTm — ali as exportações carregadas
 ficam guardadas e a seção de mudanças compara cada semana com a anterior.
