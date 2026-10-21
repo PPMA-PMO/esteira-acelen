@@ -244,6 +244,12 @@ section { min-width: 0; }
 .nw { white-space: nowrap; }
 .linha .sub { grid-column: 2 / -1; font-size: 12px; color: var(--ink-2); }
 
+/* barra com traço de referência (8 h por dia útil), como a tela Recursos do PPMA v2 */
+.bar-ref { position: relative; }
+.bar-ref > i { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink-1); border-radius: 1px; }
+.mini b.st-critical, .mini b.st-on-track { font-size: 22px; }
+.pico { color: var(--warn-ink); }
+
 /* CABs por mês */
 .colunas { display: flex; align-items: flex-end; gap: 6px; height: 170px; padding: 8px 20px 0; }
 .col { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
@@ -357,20 +363,26 @@ details.hist li + li { margin-top: 8px; }
   <div id="app" hidden style="display:contents">
     <section id="secDelta"></section>
     <section id="secKpi"></section>
+    <section id="secPrevisao"></section>
     <section id="secAcao"></section>
     <div class="grid2">
       <section id="secPrazo"></section>
+      <section id="secLead"></section>
+    </div>
+    <div class="grid2">
       <section id="secProximas"></section>
+      <section id="secAgenda"></section>
+    </div>
+    <div class="grid2">
+      <section id="secCarga"></section>
+      <section id="secPessoas"></section>
     </div>
     <div class="grid2">
       <section id="secPi"></section>
       <section id="secCab"></section>
     </div>
     <section id="secArea"></section>
-    <div class="grid2">
-      <section id="secPessoas"></section>
-      <section id="secQualidade"></section>
-    </div>
+    <section id="secQualidade"></section>
     <section id="secDado"></section>
     <section id="secTodas"></section>
     <section id="secMetodo"></section>
@@ -673,7 +685,35 @@ details.hist li + li { margin-top: 8px; }
     return { de: ant.corte, itens, conta: contar(itens, (x) => x.tipo), demandas: new Set(itens.map((x) => x.d.chave)).size };
   }
 
-  function analisar(snap, ant) {
+  // Dias úteis: segunda a sexta, sem os feriados nacionais (fixos, Carnaval, Sexta-feira Santa e
+  // Corpus Christi). Feriado local e ponte não entram: a lista não diz de que cidade é cada pessoa.
+  function pascoa(y) {
+    const a = y % 19, b = Math.floor(y / 100), k = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(k / 4), l = (32 + 2 * e + 2 * i - h - (k % 4)) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451), mes = Math.floor((h + l - 7 * m + 114) / 31);
+    return Date.UTC(y, mes - 1, ((h + l - 7 * m + 114) % 31) + 1) / 864e5;
+  }
+  const FERIADOS = {};
+  function ehUtil(n) {
+    const dt = new Date(n * 864e5), y = dt.getUTCFullYear(), w = dt.getUTCDay();
+    if (w === 0 || w === 6) return false;
+    if (!FERIADOS[y]) {
+      const p = pascoa(y);
+      FERIADOS[y] = new Set([...['01-01', '04-21', '05-01', '09-07', '10-12', '11-02', '11-15', '11-20', '12-25'].map((md) => dia(`${y}-${md}`)), p - 48, p - 47, p - 2, p + 60]);
+    }
+    return !FERIADOS[y].has(n);
+  }
+  const diasUteis = (a, b) => { let n = 0; for (let x = a + 1; x <= b; x++) if (ehUtil(x)) n++; return n; }; // dias úteis em (a, b]
+  const somaUteis = (a, n) => { let x = a; while (n > 0) { x++; if (ehUtil(x)) n--; } return x; };
+  const isoDe = (n) => new Date(n * 864e5).toISOString().slice(0, 10);
+  const percentil = (xs, q) => {
+    const a = [...xs].sort((x, y) => x - y), i = (a.length - 1) * q, lo = Math.floor(i);
+    return a[lo] + (a[Math.ceil(i)] - a[lo]) * (i - lo);
+  };
+  // O que entra na série do ritmo: quantas demandas estão prontas ou já em produção.
+  const resumo = (snap) => ({ prontasOuConcluidas: snap.demandas.filter((d) => ['pronto', 'concluido'].includes(faseTipo(d.fase))).length, total: snap.demandas.length });
+
+  function analisar(snap, ant, pontos) {
     const c = dia(snap.corte);
     const ks = chaves(snap.demandas);
     const ds = snap.demandas.map((d, i) => ({ ...d, chave: ks[i], tipo: faseTipo(d.fase), ...situacao(d, c), etapa: etapaDe(d, c) }));
@@ -692,6 +732,7 @@ details.hist li + li { margin-top: 8px; }
       { k: 'semcab', titulo: 'Prontas sem CAB agendada', nota: 'construídas, sem data de subida', itens: ds.filter((d) => d.st === 'semcab').sort((a, b) => (a.p_pronto || '9').localeCompare(b.p_pronto || '9')) },
       { k: 'vence', titulo: 'Vencem nos próximos 7 dias', nota: 'a data da fase cai até uma semana depois do corte', itens: ds.filter((d) => d.st === 'vence').sort((a, b) => a.dias - b.dias) },
     ].filter((g) => g.itens.length);
+    acao.forEach((g) => { g.semStatus = g.itens.filter((d) => !d.statusReport).length; });
 
     const nomesPI = [...new Set(ds.map((d) => d.piPlan || 'Sem PI'))].sort(porNome);
     const pis = nomesPI.map((pi) => {
@@ -791,6 +832,7 @@ details.hist li + li { margin-top: 8px; }
     const sem = (xs, k) => xs.filter((d) => d[k] == null);
     const cadastro = [
       { campo: 'Data planejada da fase atual', derivado: true, itens: abertas.filter((d) => d.st === 'semdata' || d.st === 'semcab'), base: abertas.length, baseNome: 'abertas', efeito: 'sem ela o prazo da demanda não é medido' },
+      { campo: 'Status Report Semanal', itens: sem(abertas, 'statusReport'), base: abertas.length, baseNome: 'abertas', efeito: 'a demanda aberta não diz em que pé está nem o que espera' },
       { campo: 'QtdHoras', itens: sem(abertas, 'horas'), base: abertas.length, baseNome: 'abertas', efeito: 'o esforço do que falta fica subestimado' },
       { campo: 'Classificação de Tamanho', itens: sem(abertas, 'tamanho'), base: abertas.length, baseNome: 'abertas', efeito: 'a cadência por tamanho fica parcial' },
       { campo: 'Data CAB', itens: sem(prontas, 'cab'), base: prontas.length, baseNome: 'prontas', efeito: 'pronta sem CAB não tem data de subida' },
@@ -803,16 +845,82 @@ details.hist li + li { margin-top: 8px; }
       { campo: 'Fase × data real', derivado: true, itens: incoerentes, base: null, efeito: 'tem data real de uma etapa que a fase ainda não alcançou: a fase ficou para trás' },
     ].filter((x) => x.itens.length);
 
+    // Fechamento do PI mais recente. Ritmo = quantas demandas a mais ficaram prontas ou concluídas,
+    // na esteira toda, por dia útil, desde a medição mais antiga das últimas 4 semanas.
+    const piAtual = pis.filter((x) => x.pi !== 'Sem PI').at(-1) || null;
+    let previsao = null;
+    if (piAtual) {
+      const doPI = ds.filter((d) => (d.piPlan || 'Sem PI') === piAtual.pi);
+      const faltam = doPI.filter((d) => d.st !== 'concluida' && d.st !== 'cancelada' && d.tipo !== 'pronto');
+      const ultimo = doPI.map((d) => d.p_pronto).filter(Boolean).sort().at(-1) || null;
+      const duAte = ultimo && dia(ultimo) > c ? diasUteis(c, dia(ultimo)) : 0;
+      const agora = resumo(snap).prontasOuConcluidas;
+      const base = (pontos || []).filter((x) => x.corte < snap.corte && dia(x.corte) >= c - 28 && diasUteis(dia(x.corte), c) >= 5)
+        .sort((a, b) => a.corte.localeCompare(b.corte))[0] || null;
+      const du = base ? diasUteis(dia(base.corte), c) : null;
+      const ritmo = base ? (agora - base.prontasOuConcluidas) / du : null;
+      const prevista = ritmo > 0 ? isoDe(somaUteis(c, Math.ceil(faltam.length / ritmo))) : null;
+      previsao = {
+        pi: piAtual.pi, faltam: faltam.length, horas: somaH(faltam), semEst: faltam.filter((d) => d.horas == null).length,
+        semPronto: faltam.filter((d) => !d.p_pronto).length, bloqueadas: faltam.filter((d) => d.st === 'bloqueada').length,
+        ultimo, duAte, necessario: duAte ? faltam.length / duAte : null, agora, base: base && { ...base, du }, ritmo, prevista,
+        folga: prevista && ultimo ? (prevista > ultimo ? diasUteis(dia(ultimo), dia(prevista)) : -diasUteis(dia(prevista), dia(ultimo))) : null,
+      };
+    }
+
+    // Carga até a construção: horas por papel das demandas que ainda vão ser construídas, divididas
+    // pelos dias úteis até a última data de fim de construção (ou de pronto) da pessoa.
+    function carga(campoPessoa, campoHoras) {
+      const m = new Map();
+      ds.filter((d) => ['backlog', 'refinamento', 'construcao'].includes(d.tipo)).forEach((d) => (d[campoPessoa] || []).forEach((nome) => {
+        const o = m.get(nome) || { nome, horas: 0, n: 0, fim: null, semData: 0, semDataN: 0, semEst: 0 };
+        const fim = d.p_construcao || d.p_pronto || null;
+        const h = d[campoHoras];
+        if (h == null) o.semEst++;
+        else if (!fim) { o.semData += h; o.semDataN++; } else { o.horas += h; o.n++; if (!o.fim || fim > o.fim) o.fim = fim; }
+        m.set(nome, o);
+      }));
+      return [...m.values()].map((o) => {
+        const du = o.fim ? Math.max(1, diasUteis(c, dia(o.fim))) : null;
+        return { ...o, du, venceu: !!o.fim && dia(o.fim) <= c, porDia: du ? o.horas / du : null };
+      }).sort((a, b) => (b.porDia ?? -1) - (a.porDia ?? -1) || b.semData - a.semData || porNome(a.nome, b.nome));
+    }
+    const cargas = { funcional: carga('funcional', 'horasFunc'), abap: carga('abap', 'horasAbap') };
+
+    // Agenda de homologação: a Data de Entrega Homologação das demandas que ainda não homologaram.
+    const uatItens = ds.filter((d) => ['backlog', 'refinamento', 'construcao', 'homologacao'].includes(d.tipo) && d.p_homologacao && !d.r_homologacao)
+      .map((d) => ({ d, data: d.p_homologacao, dias: dia(d.p_homologacao) - c })).filter((x) => x.dias <= 42)
+      .sort((a, b) => a.data.localeCompare(b.data) || porNome(a.d.id, b.d.id));
+    const porResp = new Map();
+    uatItens.forEach((x) => { const k = x.d.respAcelen || 'Sem responsável Acelen'; if (!porResp.has(k)) porResp.set(k, []); porResp.get(k).push(x); });
+    const uat = {
+      total: uatItens.length, vencidas: uatItens.filter((x) => x.dias < 0).length,
+      grupos: [...porResp].map(([nome, itens]) => ({ nome, itens, picos: Object.entries(contar(itens, (x) => x.data)).filter(([, n]) => n > 1).map(([data, n]) => ({ data, n })) }))
+        .sort((a, b) => b.itens.length - a.itens.length || porNome(a.nome, b.nome)),
+    };
+
+    // Tempo real de entrega: do início registrado até a produção (Data Concluído Real ou, sem ela, Data CAB).
+    const entregas = concl.map((d) => ({ d, fim: d.r_concluido || d.cab || null }))
+      .filter((x) => x.d.r_inicio && x.fim && dia(x.fim) <= c)
+      .map((x) => ({ ...x, dias: dia(x.fim) - dia(x.d.r_inicio), plan: x.d.p_inicio && x.d.p_pronto ? dia(x.d.p_pronto) - dia(x.d.p_inicio) : null }));
+    const tempo = (xs) => ({ n: xs.length, mediana: mediana(xs.map((x) => x.dias)), p85: xs.length >= 5 ? percentil(xs.map((x) => x.dias), 0.85) : null });
+    const lead = {
+      ...tempo(entregas), plan: mediana(entregas.filter((x) => x.plan != null).map((x) => x.plan)), base: concl.length,
+      porPI: nomesPI.map((pi) => ({ pi, ...tempo(entregas.filter((x) => (x.d.piPlan || 'Sem PI') === pi)) })).filter((x) => x.n),
+      inicioCopiado: ds.filter((d) => d.r_inicio && d.p_inicio && d.r_inicio === d.p_inicio).length,
+      comInicio: ds.filter((d) => d.r_inicio && d.p_inicio).length,
+    };
+
     return {
       snap, corte: snap.corte, ds, abertas, concl, prontas, st, etapas, fora, acao, pis, aderencia, meses, proximas, areas,
-      pessoas, replan, qualidade, cadastro, repetidos,
+      pessoas, replan, qualidade, cadastro, repetidos, previsao, cargas, uat, lead,
       horas: { total: somaH(ds), concl: somaH(concl), abertas: somaH(abertas), prontas: somaH(prontas), abertasSemEst: sem(abertas, 'horas').length },
-      piAtual: pis.filter((p) => p.pi !== 'Sem PI').at(-1) || null,
+      piAtual,
       delta: ant ? comparar(ds, ant) : null,
     };
   }
 
-  globalThis.Esteira = { lerXlsx, normalizar, analisar, ETAPAS, ESTAGIOS, CAMPOS, dia, faseTipo, FUSO };
+  globalThis.Esteira = { lerXlsx, normalizar, analisar, resumo, ETAPAS, ESTAGIOS, CAMPOS, dia, diasUteis, faseTipo, FUSO };
 })();
 </script>
 
@@ -860,7 +968,7 @@ details.hist li + li { margin-top: 8px; }
 
   const estado = {
     db: null, podeGravar: null, exportacoes: [], cache: new Map(), selecionada: null, modelo: null,
-    filtro: { st: 'abertas', pi: '', area: '', etapa: '', q: '' }, abertas: new Set(), pessoas: 'respAcelen',
+    filtro: { st: 'abertas', pi: '', area: '', etapa: '', q: '' }, abertas: new Set(), pessoas: 'respAcelen', carga: 'abap', referencias: [],
   };
 
   // ---------- desenho ----------
@@ -873,9 +981,13 @@ details.hist li + li { margin-top: 8px; }
     renderBanda(m);
     renderDelta(m);
     renderKpi(m);
+    renderPrevisao(m);
     renderAcao(m);
     renderPrazo(m);
+    renderLead(m);
     renderProximas(m);
+    renderAgenda(m);
+    renderCarga(m);
     renderPi(m);
     renderCab(m);
     renderArea(m);
@@ -980,7 +1092,7 @@ details.hist li + li { margin-top: 8px; }
     const total = m.acao.reduce((s, g) => s + g.itens.length, 0);
     $('#secAcao').innerHTML = secH('Pedem ação', total ? `${pl(total, 'demanda', 'demandas')}, agrupadas pelo que precisa acontecer` : 'nada pendente') + (total ? `<div class="card"><div class="tbl-wrap"><table class="tbl">
       <thead><tr><th>Código</th><th>Demanda</th><th>Fase na lista</th><th>Prazo</th><th>Resp. Acelen</th><th>Funcional</th></tr></thead><tbody>${m.acao.map((g) =>
-        `<tr class="grp"><td colspan="6"><b>${esc(g.titulo)}</b><span>${pl(g.itens.length, 'demanda', 'demandas')} · ${esc(g.nota)}</span></td></tr>${g.itens.map((d) => linhaDemanda(d, d.statusReport ? ` · status: ${esc(d.statusReport.slice(0, 120))}${d.statusReport.length > 120 ? '…' : ''}` : '')).join('')}`).join('')}</tbody></table></div></div>`
+        `<tr class="grp"><td colspan="6"><b>${esc(g.titulo)}</b><span>${pl(g.itens.length, 'demanda', 'demandas')} · ${esc(g.nota)}${g.semStatus ? ` · ${g.semStatus === g.itens.length ? 'nenhuma com status report' : `${num(g.semStatus)} sem status report`}` : ''}</span></td></tr>${g.itens.map((d) => linhaDemanda(d, d.statusReport ? ` · status: ${esc(d.statusReport.slice(0, 120))}${d.statusReport.length > 120 ? '…' : ''}` : '')).join('')}`).join('')}</tbody></table></div></div>`
       : '<div class="card aviso good"><h3>Nenhuma demanda bloqueada, atrasada ou vencendo nesta semana</h3></div>');
   }
 
@@ -1038,6 +1150,56 @@ details.hist li + li { margin-top: 8px; }
     $('#secArea').innerHTML = secH('Área × PI', 'demandas por PI planejado') + `<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Área</th>${pis.map((p) => `<th class="r">${esc(p)}</th>`).join('')}<th class="r">Total</th><th class="r">Horas estimadas</th><th class="r">h / demanda</th><th class="r">Abertas</th><th class="r">Atrasadas</th></tr></thead><tbody>${m.areas.map((a) =>
       `<tr><td>${esc(a.area)}</td>${pis.map((p) => { const v = a.porPI[p] || 0; return `<td class="r heat" style="background:color-mix(in srgb, var(--heat) ${v ? Math.round(8 + (40 * v) / mx) : 0}%, transparent)">${v || '–'}</td>`; }).join('')}<td class="r"><b>${num(a.n)}</b></td><td class="r">${hh(a.horas)}</td><td class="r">${a.hMedia != null ? num(Math.round(a.hMedia)) : '–'}</td><td class="r">${num(a.abertas)}</td><td class="r">${a.atrasadas ? `<span class="st-critical">▲ ${num(a.atrasadas)}</span>` : '–'}</td></tr>`).join('')}
       <tr><td><b>Total</b></td>${pis.map((p) => `<td class="r"><b>${num(tot((a) => a.porPI[p] || 0))}</b></td>`).join('')}<td class="r"><b>${num(m.ds.length)}</b></td><td class="r"><b>${hh(m.horas.total)}</b></td><td class="r">${(() => { const c = m.ds.filter((d) => d.horas != null); return c.length ? num(Math.round(m.horas.total / c.length)) : '–'; })()}</td><td class="r"><b>${num(m.abertas.length)}</b></td><td class="r"><b>${num(m.st.atrasada || 0)}</b></td></tr></tbody></table></div></div>`;
+  }
+
+  const dec = (x) => Number(x).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function renderPrevisao(m) {
+    const p = m.previsao;
+    if (!p) { $('#secPrevisao').innerHTML = ''; return; }
+    const b = p.base;
+    const folga = p.folga == null ? '' : p.folga <= 0
+      ? `<span class="st-on-track">● ${pl(-p.folga, 'dia útil', 'dias úteis')} antes do último pronto planejado</span>`
+      : `<span class="st-critical">▲ ${pl(p.folga, 'dia útil', 'dias úteis')} depois do último pronto planejado</span>`;
+    $('#secPrevisao').innerHTML = secH(`Fechamento do ${esc(p.pi)}`, 'quando o PI chega a pronto, no ritmo de hoje') + `<div class="card"><div class="mini">
+      <div><b>${num(p.faltam)}</b><span>${p.faltam === 1 ? 'demanda' : 'demandas'} do ${esc(p.pi)} antes de pronto · ${hh(p.horas)} estimadas${p.semEst ? ` (${num(p.semEst)} sem estimativa)` : ''}${p.bloqueadas ? ` · ${num(p.bloqueadas)} bloqueada${p.bloqueadas === 1 ? '' : 's'}` : ''}</span></div>
+      <div><b>${p.ultimo ? dt(p.ultimo) : '—'}</b><span>último pronto planejado${p.ultimo ? ` · ${pl(p.duAte, 'dia útil', 'dias úteis')} a partir do corte` : ''}${p.semPronto ? ` · ${num(p.semPronto)} das ${num(p.faltam)} sem data de pronto` : ''}</span></div>
+      <div><b>${p.necessario != null ? dec(p.necessario) : '—'}</b><span>${p.necessario != null ? `demanda por dia útil para chegar a pronto até ${dt(p.ultimo)}` : 'ritmo necessário: sem data de pronto futura no PI'}</span></div>
+      <div><b>${p.ritmo != null ? dec(p.ritmo) : '—'}</b><span>${b ? `demanda por dia útil de verdade: de ${num(b.prontasOuConcluidas)} para ${num(p.agora)} prontas ou concluídas entre ${dt(b.corte)} (${esc(b.fonte || 'exportação')}) e ${dt(m.corte)}` : 'ritmo real: aparece quando houver uma exportação de pelo menos uma semana antes'}</span></div>
+      <div><b>${p.prevista ? dt(p.prevista) : '—'}</b><span>${p.prevista ? `previsão no ritmo real${folga ? ` · ${folga}` : ''}` : p.ritmo != null ? 'sem previsão: o número de prontas ou concluídas não subiu' : 'previsão: precisa do ritmo real'}</span></div>
+    </div><p class="nota nota-pe">Ritmo real = aumento de demandas prontas ou concluídas na esteira toda, dividido pelos dias úteis entre a medição mais antiga das últimas 4 semanas e o corte. Previsão = faltam ÷ ritmo, contada em dias úteis a partir do corte. Bloqueadas contam como faltando; demanda sem data de pronto não entra no último pronto planejado. Dias úteis: segunda a sexta, sem feriados nacionais.</p></div>`;
+  }
+
+  function renderLead(m) {
+    const L = m.lead;
+    $('#secLead').innerHTML = secH('Tempo real de entrega', 'do início à produção, nas concluídas') + `<div class="card">${L.n ? `<div class="mini">
+      <div><b>${num(L.mediana)} d</b><span>mediana: metade das entregas levou até isso</span></div>
+      <div><b>${L.p85 != null ? `${num(Math.round(L.p85))} d` : '—'}</b><span>${L.p85 != null ? '85% entraram em produção em até' : '85%: precisa de 5 entregas ou mais'}</span></div>
+      <div><b>${L.plan != null ? `${num(L.plan)} d` : '—'}</b><span>planejado para as mesmas demandas (mediana de início → pronto)</span></div>
+    </div><div class="tbl-wrap" style="border-top:1px solid var(--border-soft)"><table class="tbl"><thead><tr><th>PI</th><th class="r">Entregas</th><th class="r">Mediana</th><th class="r">85% em até</th></tr></thead><tbody>${L.porPI.map((x) =>
+      `<tr><td>${esc(x.pi)}</td><td class="r">${num(x.n)}</td><td class="r">${num(x.mediana)} d</td><td class="r">${x.p85 != null ? `${num(Math.round(x.p85))} d` : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card-p nota">Nenhuma concluída tem data de início real e data de fim até o corte.</div>'}
+      <p class="nota nota-pe">${num(L.n)} de ${num(L.base)} concluídas têm início e fim. Fim = Data Concluído Real ou, sem ela, Data CAB. Início = Data Início Real${L.comInicio && L.inicioCopiado === L.comInicio ? `, que é igual à Data de Início planejada em ${num(L.inicioCopiado)} de ${num(L.comInicio)} demandas: o início real não é lançado à parte` : L.inicioCopiado ? ` (igual à planejada em ${num(L.inicioCopiado)} de ${num(L.comInicio)})` : ''}. 85% só aparece com 5 entregas ou mais.</p></div>`;
+  }
+
+  function renderAgenda(m) {
+    const A = m.uat;
+    $('#secAgenda').innerHTML = secH('Agenda de homologação', `${pl(A.total, 'homologação planejada', 'homologações planejadas')} nas próximas 6 semanas, por responsável Acelen`) + `<div class="card">${A.total ? `<div class="tbl-wrap"><table class="tbl"><tbody>${A.grupos.map((g) =>
+      `<tr class="grp"><td colspan="4"><b>${esc(g.nome)}</b><span>${pl(g.itens.length, 'homologação', 'homologações')}${g.picos.map((x) => ` · <span class="pico">▲ ${num(x.n)} no mesmo dia (${dt(x.data)})</span>`).join('')}</span></td></tr>${g.itens.map((x) =>
+        `<tr${x.dias < 0 ? ' class="crit"' : ''}><td class="nw">${dt(x.data)}</td><td>${codBtn(x.d)}</td><td class="tit">${esc(x.d.titulo)}<small>hoje: ${esc(x.d.fase)}</small></td><td class="nw">${x.dias < 0 ? `<span class="st-critical">▲ vencida ${rel(x.dias)}</span>` : esc(rel(x.dias))}</td></tr>`).join('')}`).join('')}</tbody></table></div>`
+      : '<div class="card-p nota">Nenhuma homologação planejada nas próximas seis semanas.</div>'}
+      <p class="nota nota-pe">Data de Entrega Homologação das demandas que ainda não homologaram (sem data real de homologação). É a agenda de UAT que cada responsável na Acelen precisa reservar.</p></div>`;
+  }
+
+  function renderCarga(m) {
+    const OP = { funcional: 'Funcional Avvale', abap: 'ABAP Avvale' };
+    const L = m.cargas[estado.carga];
+    const com = L.filter((o) => o.porDia != null);
+    const sem = L.filter((o) => o.porDia == null);
+    const escala = Math.max(16, ...com.map((o) => o.porDia));
+    $('#secCarga').innerHTML = secH('Carga até a construção', 'horas estimadas por dia útil') + `<div class="card"><div class="filtros" role="group" aria-label="Papel">${Object.entries(OP).map(([k, v]) => `<button type="button" class="chip" data-carga="${k}" aria-pressed="${estado.carga === k}">${v}</button>`).join('')}</div>
+      <div class="linhas">${com.length ? com.map((o) => `<div class="linha"><span class="nome" title="${esc(o.nome)}">${esc(o.nome)}</span><div class="bar-ref" role="img" aria-label="${esc(`${dec(o.porDia)} horas por dia útil`)}"><div class="bar lg"><span style="width:${(100 * o.porDia) / escala}%;background:${o.porDia > 8 ? 'var(--grad-alert)' : 'var(--e3)'}"></span></div><i style="left:${(100 * 8) / escala}%" aria-hidden="true"></i></div>
+        <span class="val">${o.porDia > 8 ? '<span class="st-critical">▲</span> ' : ''}<b>${num(Math.round(o.porDia * 10) / 10)} h</b> <span class="muted">por dia</span></span>
+        <span class="sub">${hh(o.horas)} em ${pl(o.n, 'demanda', 'demandas')} até ${dt(o.fim)}${o.venceu ? ' · <span class="st-critical">data já passou</span>' : ` · ${pl(o.du, 'dia útil', 'dias úteis')}`}${o.semData ? ` · +${hh(o.semData)} sem data` : ''}${o.semEst ? ` · ${num(o.semEst)} sem estimativa` : ''}</span></div>`).join('') : '<div class="card-p nota">Ninguém com horas e data até a construção.</div>'}</div>
+      <p class="nota nota-pe">${sem.length ? `Sem carga com data: ${sem.map((o) => `${esc(o.nome)} (${[o.semData && `${hh(o.semData)} sem data`, o.semEst && `${num(o.semEst)} sem estimativa`].filter(Boolean).join(', ')})`).join('; ')}. ` : ''}Horas ${estado.carga === 'abap' ? 'ABAP' : 'Funcional'} das demandas em Backlog, Em Refinamento e Em Construção, divididas pelos dias úteis até a última data de fim de construção (ou de pronto) da pessoa. É um teto: a lista só tem estimativa, sem horas apontadas, então o que já foi gasto conta como a fazer. O traço marca 8 h por dia útil, premissa e não a alocação real de cada pessoa.</p></div>`;
   }
 
   function renderPessoas(m) {
@@ -1179,7 +1341,16 @@ details.hist li + li { margin-top: 8px; }
     await mostrarSelecionada();
   }
 
-  function metaDe(s) { const { demandas, ...meta } = s; return meta; }
+  function metaDe(s) { const { demandas, ...meta } = s; return { ...meta, resumo: E.resumo(s) }; }
+  // Pontos da série do ritmo: as exportações guardadas e as referências declaradas (ex.: o board).
+  const ehPonto = (x) => x && typeof x.corte === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.corte) && Number.isFinite(x.prontasOuConcluidas);
+  function pontos() {
+    const exps = estado.exportacoes.map((x) => {
+      const r = x.resumo || (estado.cache.has(x.id) ? E.resumo(estado.cache.get(x.id)) : null);
+      return r && { corte: x.corte, ...r, fonte: 'exportação' };
+    });
+    return [...exps, ...estado.referencias].filter(ehPonto);
+  }
   function local(snap) {
     estado.exportacoes = [...estado.exportacoes.filter((x) => x.id !== snap.id), metaDe(snap)].sort((a, b) => b.corte.localeCompare(a.corte));
   }
@@ -1209,7 +1380,7 @@ details.hist li + li { margin-top: 8px; }
     try {
       const [snap, ant] = await Promise.all([snapDe(lista[i].id), lista[i + 1] ? snapDe(lista[i + 1].id) : null]);
       if (!snap || !snap.demandas.length) { mostrarMsg('A exportação guardada veio vazia. Carregue o arquivo de novo.', true); return; }
-      render(E.analisar(snap, ant && ant.demandas.length ? ant : null));
+      render(E.analisar(snap, ant && ant.demandas.length ? ant : null, pontos()));
     } catch (e) {
       mostrarMsg(`Não consegui abrir a exportação (${(e && (e.message || e.code)) || 'erro'}).`, true);
     }
@@ -1230,6 +1401,7 @@ details.hist li + li { margin-top: 8px; }
     if (!db) { $('#vazioTit').textContent = 'Nenhuma exportação carregada'; return; }
     estado.db = db;
     try { const user = await claude.use('user'); estado.podeGravar = user ? await user.can('data.write') : null; } catch { estado.podeGravar = null; }
+    try { const r = await db.doc('referencias/ritmo').get(); if (r.exists) estado.referencias = (r.data().pontos || []).filter(ehPonto); } catch { estado.referencias = []; }
     db.collection('exportacoes').onSnapshot((snap) => {
       const locais = estado.exportacoes.filter((x) => !snap.docs.some((d) => d.id === x.id) && estado.cache.has(x.id));
       estado.exportacoes = [...snap.docs.map((d) => ({ id: d.id, ...d.data() })), ...locais].sort((a, b) => b.corte.localeCompare(a.corte));
@@ -1276,6 +1448,8 @@ details.hist li + li { margin-top: 8px; }
     }
     const chipSt = t.closest('[data-st]');
     if (chipSt && chipSt.classList.contains('chip')) { estado.filtro.st = chipSt.dataset.st; renderTodas(estado.modelo); return; }
+    const chipC = t.closest('[data-carga]');
+    if (chipC) { estado.carga = chipC.dataset.carga; renderCarga(estado.modelo); return; }
     const chipP = t.closest('[data-pessoas]');
     if (chipP) { estado.pessoas = chipP.dataset.pessoas; renderPessoas(estado.modelo); return; }
     const lin = t.closest('tr.lin');
@@ -1330,7 +1504,9 @@ details.hist li + li { margin-top: 8px; }
   const embutida = document.getElementById('exportacaoEmbutida');
   if (embutida) {
     try {
-      const snap = JSON.parse(embutida.textContent);
+      const dado = JSON.parse(embutida.textContent);
+      const snap = dado.exportacao || dado;
+      if (Array.isArray(dado.referencias)) estado.referencias = dado.referencias.filter(ehPonto);
       estado.cache.set(snap.id, snap);
       local(snap);
       estado.selecionada = snap.id;

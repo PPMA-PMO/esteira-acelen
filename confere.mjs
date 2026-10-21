@@ -3,6 +3,7 @@
 //   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx>             imprime os números e confere as partições
 //   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle  estraga uma demanda e PRECISA reprovar
 //   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-subfase  põe uma demanda na subfase errada e PRECISA reprovar
+//   ... --ponto=2026-09-28:95   medição anterior de prontas ou concluídas, para imprimir o ritmo e a previsão
 //
 // Roda o mesmo código que a página roda; nada de reimplementar a regra aqui. O que se confere
 // são invariantes que valem para qualquer exportação: cada demanda cai em exatamente uma
@@ -12,7 +13,10 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const [arquivo, modo] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const arquivo = args.find((a) => !a.startsWith('--'));
+const modo = args.find((a) => a.startsWith('--controle'));
+const pontos = args.filter((a) => a.startsWith('--ponto=')).map((a) => { const [corte, n] = a.slice(8).split(':'); return { corte, prontasOuConcluidas: +n, fonte: 'linha de comando' }; });
 if (!arquivo) { console.error('uso: node confere.mjs <exportacao.xlsx> [--controle]'); process.exit(2); }
 
 const html = readFileSync(fileURLToPath(new URL('./index.html', import.meta.url)), 'utf8');
@@ -23,7 +27,7 @@ const E = globalThis.Esteira;
 const buf = readFileSync(arquivo);
 const snap = E.normalizar(await E.lerXlsx(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)), arquivo);
 if (modo === '--controle') snap.demandas[0].fase = 'Fase que não existe';
-const m = E.analisar(snap, null);
+const m = E.analisar(snap, null, pontos);
 if (modo === '--controle-subfase') {
   const d = m.ds.find((x) => x.etapa);
   d.etapa = d.etapa === 'preprojeto' ? 'preparacao' : 'preprojeto';
@@ -54,6 +58,20 @@ const REGRA = {
 const fora = m.ds.filter((d) => (REGRA[E.faseTipo(d.fase)] ? REGRA[E.faseTipo(d.fase)](d) : null) !== (d.etapa ?? null));
 confere(!fora.length, `subfase fora da regra: ${fora.slice(0, 5).map((d) => `${d.id} (${d.fase}) em ${d.etapa}`).join(', ')}`);
 
+// Dias úteis: datas conhecidas do calendário (12/10 e Sexta-feira Santa de 2026 são feriados).
+confere(E.diasUteis(E.dia('2026-09-28'), E.dia('2026-10-16')) === 13, 'dias úteis de 28/09 a 16/10/2026 deveriam ser 13 (feriado de 12/10)');
+confere(E.diasUteis(E.dia('2026-04-02'), E.dia('2026-04-03')) === 0, 'Sexta-feira Santa de 2026 (03/04) deveria ser feriado');
+// Previsão: as que faltam + as prontas, concluídas e canceladas fecham com o PI.
+if (m.previsao) {
+  const doPI = m.ds.filter((d) => (d.piPlan || 'Sem PI') === m.previsao.pi);
+  confere(m.previsao.faltam + doPI.filter((d) => d.tipo === 'pronto' || d.st === 'concluida' || d.st === 'cancelada').length === doPI.length, 'previsão: faltam + prontas/concluídas/canceladas não fecham com o PI');
+}
+// Agenda de homologação: só demanda que ainda não homologou, até 6 semanas à frente.
+confere(m.uat.grupos.flatMap((g) => g.itens).every((x) => !x.d.r_homologacao && x.dias <= 42 && ['backlog', 'refinamento', 'construcao', 'homologacao'].includes(x.d.tipo)), 'agenda de homologação com demanda fora da regra');
+confere(m.uat.grupos.reduce((s, g) => s + g.itens.length, 0) === m.uat.total, 'agenda de homologação: grupos não fecham com o total');
+// Tempo real de entrega: só concluídas, com fim até o corte.
+confere(m.lead.n <= m.concl.length && m.lead.porPI.reduce((s, x) => s + x.n, 0) === m.lead.n, 'tempo real de entrega: base não fecha');
+
 console.log(`exportação ${snap.corte} · ${snap.total} demandas · ${snap.colunasAusentes.length} colunas ausentes`);
 console.log('situação', m.st);
 console.log('etapas  ', Object.fromEntries(m.etapas.map((e) => [e.k, e.n])), 'fora', m.fora);
@@ -62,6 +80,12 @@ console.log('PIs     ', m.pis.map((p) => `${p.pi}: ${p.n} (${p.concl} concl., ${
 console.log('aderência', m.aderencia.map((a) => `${a.nome} ${a.ok}/${a.n}`).join(' | '));
 console.log('ação    ', m.acao.map((g) => `${g.k} ${g.itens.length}`).join(' | '));
 console.log('cadastro', m.cadastro.map((c) => `${c.campo} ${c.itens.length}`).join(' | '));
+const pv = m.previsao;
+if (pv) console.log('previsão', `${pv.pi}: faltam ${pv.faltam} (${pv.horas} h, ${pv.semEst} sem estimativa, ${pv.semPronto} sem pronto) · último pronto ${pv.ultimo} · ${pv.duAte} dias úteis · necessário ${pv.necessario?.toFixed(2)}/dia · ritmo ${pv.ritmo?.toFixed(2) ?? '—'} · prevista ${pv.prevista ?? '—'} · folga ${pv.folga ?? '—'}`);
+console.log('tempo   ', `${m.lead.n} entregas · mediana ${m.lead.mediana} d · 85% ${m.lead.p85?.toFixed(1)} d · planejado ${m.lead.plan} d · ${m.lead.porPI.map((x) => `${x.pi} ${x.n}/${x.mediana}`).join(' ')}`);
+console.log('UAT     ', `${m.uat.total} em 6 semanas · ${m.uat.vencidas} vencidas · ${m.uat.grupos.map((g) => `${g.nome} ${g.itens.length}${g.picos.length ? ` (pico ${g.picos.map((x) => `${x.n} em ${x.data}`).join(', ')})` : ''}`).join(' | ')}`);
+for (const lado of ['abap', 'funcional']) console.log(`carga ${lado.padEnd(9)}`, m.cargas[lado].filter((o) => o.porDia != null).map((o) => `${o.nome} ${o.horas} h/${o.du} du = ${o.porDia.toFixed(1)}`).join(' | '));
+console.log('status  ', m.acao.map((g) => `${g.k}: ${g.itens.length - g.semStatus}/${g.itens.length} com status`).join(' | '));
 
 if (falhas.length) { console.error(`\nREPROVADO\n- ${falhas.join('\n- ')}`); process.exit(1); }
 console.log('\naprovado');

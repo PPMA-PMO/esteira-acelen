@@ -35,6 +35,18 @@ lê ou escreve no Supabase do PPMA.
   A tabela fica em `ETAPAS`, no núcleo.
 - **Prazo planejado × real**, **cadência por PI**, **CABs por mês**, **área × PI**, **pessoas**,
   **replanejamento** e **qualidade do cadastro** seguem o método do board executivo de 28/09/2026.
+- **Fechamento do PI**: ritmo necessário (faltam ÷ dias úteis até o último pronto planejado) e ritmo
+  real (aumento de prontas ou concluídas na esteira toda ÷ dias úteis desde a medição mais antiga das
+  últimas 4 semanas). As medições são as exportações guardadas e as referências declaradas no
+  documento `referencias/ritmo` do artifact (hoje, o board de 28/09: 95 de 114). Dias úteis:
+  segunda a sexta sem feriados nacionais.
+- **Carga até a construção**: horas Funcional/ABAP das demandas em Backlog, Em Refinamento e
+  Em Construção ÷ dias úteis até a última data de fim de construção da pessoa. É teto, não saldo:
+  a lista não tem horas apontadas.
+- **Agenda de homologação**: Data de Entrega Homologação das demandas que ainda não homologaram,
+  6 semanas à frente, por responsável Acelen.
+- **Tempo real de entrega**: Data Início Real até Data Concluído Real (ou Data CAB), nas concluídas;
+  mediana e 85%.
 
 ## Conferir
 
