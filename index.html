@@ -214,6 +214,10 @@ section { min-width: 0; }
 .tit { max-width: 46ch; }
 .tit small { display: block; color: var(--ink-2); font-size: 12px; margin-top: 2px; }
 .um { display: block; max-width: 60ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#tabTodas .tbl th, #tabTodas .tbl td { padding-left: 9px; padding-right: 9px; }
+#tabTodas .tbl th { white-space: normal; vertical-align: bottom; }
+#tabTodas .tbl td.tit { min-width: 220px; }
+#tabTodas .tbl td:last-child { min-width: 110px; }
 .fase { display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border); white-space: nowrap; color: var(--ink-1); }
 .lin { cursor: pointer; }
 .lin:hover > td { background-color: var(--surface-alt); }
@@ -390,7 +394,7 @@ details.hist li + li { margin-top: 8px; }
         <span><span class="lk-name">avvale</span><span class="lk-sig">Project portfolio</span></span>
       </div>
       <div class="topo-acts">
-        <span class="versao" id="versao" title="Versão do report">versão 6</span>
+        <span class="versao" id="versao" title="Versão do report">versão 6.1</span>
         <label class="sel-exp" id="selExpRot" hidden>Exportação <select id="selExp"></select></label>
       </div>
     </div>
@@ -1782,6 +1786,17 @@ details.hist li + li { margin-top: 8px; }
       .sort((a, b) => ORDEM_ST.indexOf(a.st) - ORDEM_ST.indexOf(b.st) || (a.dias ?? 0) - (b.dias ?? 0) || String(b.r_concluido || b.cab || '').localeCompare(String(a.r_concluido || a.cab || '')) || String(b.id).localeCompare(String(a.id), 'pt', { numeric: true }));
   }
 
+  // Farol da tabela: Atrasado = passou da data da fase ou bloqueada; Atenção = vence em até 7 dias ou
+  // está sem data na fase (Pré Projeto incluído); No prazo = no prazo ou concluída. Cancelada e fase
+  // não reconhecida ficam com a situação, sem farol.
+  const FAROL = { atrasada: 'late', bloqueada: 'late', vence: 'warn', semdata: 'warn', semcab: 'warn', aguardando: 'warn', noprazo: 'ok', concluida: 'ok' };
+  const FAROL_TAG = { late: ['▲', 'Atrasado', 'critical'], warn: ['◐', 'Atenção', 'at-risk'], ok: ['●', 'No prazo', 'on-track'] };
+  const farolTag = (d) => { const f = FAROL[d.st]; if (!f) return stTag(d.st); const [g, r, cls] = FAROL_TAG[f]; return `<span class="st st-${cls}"><i aria-hidden="true">${g}</i> ${r}</span>`; };
+  const porqueFarol = (d) => (d.motivo === 'encerrar' ? 'CAB passou: encerrar' : d.motivo === 'atualizar' ? 'fase por atualizar'
+    : d.st === 'atrasada' || d.st === 'vence' ? rel(d.dias) : { semdata: 'sem data na fase', semcab: 'sem CAB', aguardando: 'Pré Projeto, sem data de início', bloqueada: 'bloqueada', concluida: 'concluída' }[d.st] || '');
+  // Conclusão da fase atual: a data planejada que fecha a fase (o prazo); na concluída, o pronto planejado.
+  const conclusaoFase = (d) => (d.st === 'concluida' ? (d.p_pronto ? [d.p_pronto, 'pronto planejado'] : null) : d.prazo ? [d.prazo, d.marco.toLowerCase()] : null);
+
   function renderLinhas() {
     const m = estado.modelo;
     const xs = linhasFiltradas();
@@ -1790,9 +1805,9 @@ details.hist li + li { margin-top: 8px; }
       $('#tabTodas').innerHTML = `<div class="card-p"><button type="button" class="btn btn-out" data-abrir-todas>Mostrar ${xs.length === 1 ? 'a demanda' : `as ${num(xs.length)} demandas`} do filtro</button></div>`;
       return;
     }
-    $('#tabTodas').innerHTML = xs.length ? `<table class="tbl"><thead><tr><th>Código</th><th>Demanda</th><th>PI</th><th>Fase na lista</th><th>Situação</th><th class="r">Horas</th><th>Resp. Acelen</th></tr></thead><tbody>${xs.map((d) => {
+    $('#tabTodas').innerHTML = xs.length ? `<table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Área</th><th>PI</th><th>Fase</th><th>Farol</th><th>Conclusão fase atual</th><th>Baseline</th><th class="r">Horas</th><th>Resp. Acelen</th></tr></thead><tbody>${xs.map((d) => {
       const ab = estado.abertas.has(d.chave);
-      return `<tr class="lin${d.st === 'atrasada' ? ' crit' : ''}" data-k="${esc(d.chave)}" aria-expanded="${ab}"><td style="white-space:nowrap"><button type="button" class="exp" aria-label="Detalhes de ${esc(d.id)}" aria-expanded="${ab}">▶</button><span class="cod">${esc(d.id)}</span></td><td class="tit">${esc(d.titulo)}<small>${esc(d.area || '')}</small></td><td style="white-space:nowrap">${esc(d.piPlan || '—')}</td><td><span class="fase">${esc(d.fase || '—')}</span></td><td>${stTag(d.st)}<br><span class="nota">${esc(prazoTxt(d))}</span></td><td class="r">${d.horas != null ? num(d.horas) : '<span class="muted">—</span>'}</td><td>${esc(d.respAcelen || '—')}</td></tr>${ab ? `<tr class="det"><td colspan="7">${detalhe(d)}</td></tr>` : ''}`;
+      return `<tr class="lin${d.st === 'atrasada' ? ' crit' : ''}" data-k="${esc(d.chave)}" aria-expanded="${ab}"><td style="white-space:nowrap"><button type="button" class="exp" aria-label="Detalhes de ${esc(d.id)}" aria-expanded="${ab}">▶</button><span class="cod">${esc(d.id)}</span></td><td class="tit">${esc(d.titulo)}</td><td class="nw">${esc(d.area || '—')}</td><td class="nw">${esc(d.piPlan || '—')}</td><td><span class="fase">${esc(d.fase || '—')}</span></td><td class="nw">${farolTag(d)}${porqueFarol(d) ? `<br><span class="nota">${esc(porqueFarol(d))}</span>` : ''}</td><td class="nw">${(() => { const c = conclusaoFase(d); return c ? `${dt(c[0])}<br><span class="nota">${esc(c[1])}</span>` : '<span class="muted">—</span>'; })()}</td><td class="nw">${d.sprintPlan ? esc(d.sprintPlan) : '<span class="muted">—</span>'}</td><td class="r">${d.horas != null ? num(d.horas) : '<span class="muted">—</span>'}</td><td>${esc(d.respAcelen || '—')}</td></tr>${ab ? `<tr class="det"><td colspan="10">${detalhe(d)}</td></tr>` : ''}`;
     }).join('')}</tbody></table>` : '<div class="card-p nota">Nenhuma demanda com esses filtros.</div>';
   }
 
@@ -1806,10 +1821,16 @@ details.hist li + li { margin-top: 8px; }
     const lacunas = new Map();
     m.cadastro.forEach((x) => x.itens.forEach((d) => lacunas.set(d.chave, [...(lacunas.get(d.chave) || []), x.campo])));
     const cel = (v) => { const t = v == null ? '' : String(v); return /[;"\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
-    const cab = ['Código', 'Demanda', 'PI', 'Sprint baseline', 'Sprint real', 'Área', 'Fase na lista', 'Subfase', 'Situação', 'Motivo', 'Marco', 'Data do marco', 'Dias até o marco', 'Resp. Acelen', 'Funcional', 'ABAP', 'Horas', 'Status report', 'Lacunas do cadastro'];
-    const linhas = xs.map((d) => [d.id, d.titulo, d.piPlan, d.sprintPlan, d.sprintReal, d.area, d.fase, d.etapa ? E.ETAPAS.find((e) => e.k === d.etapa).nome : '', ST[d.st][1], MOTIVO[d.motivo] || '',
-      d.prazo ? d.marco : '', br(d.prazo), d.prazo ? d.dias : '', d.respAcelen, (d.funcional || []).join(', '), (d.abap || []).join(', '),
-      d.horas != null ? String(d.horas).replace('.', ',') : '', d.statusReport, (lacunas.get(d.chave) || []).join(' · ')]);
+    // as dez primeiras colunas são as da tabela Todas as demandas, na mesma ordem
+    const cab = ['Código', 'Descrição', 'Área', 'PI', 'Fase', 'Farol', 'Conclusão fase atual', 'Baseline', 'Horas', 'Resp. Acelen',
+      'Marco da conclusão', 'Dias até a conclusão', 'Subfase', 'Situação', 'Motivo', 'Sprint real', 'Funcional', 'ABAP', 'Status report', 'Lacunas do cadastro'];
+    const linhas = xs.map((d) => {
+      const conc = conclusaoFase(d);
+      return [d.id, d.titulo, d.area, d.piPlan, d.fase, FAROL[d.st] ? FAROL_TAG[FAROL[d.st]][1] : ST[d.st][1], br(conc && conc[0]), d.sprintPlan,
+        d.horas != null ? String(d.horas).replace('.', ',') : '', d.respAcelen,
+        conc ? conc[1] : '', d.prazo && d.st !== 'concluida' ? d.dias : '', d.etapa ? E.ETAPAS.find((e) => e.k === d.etapa).nome : '', ST[d.st][1], MOTIVO[d.motivo] || '',
+        d.sprintReal, (d.funcional || []).join(', '), (d.abap || []).join(', '), d.statusReport, (lacunas.get(d.chave) || []).join(' · ')];
+    });
     return `\uFEFF${[cab, ...linhas].map((l) => l.map(cel).join(';')).join('\r\n')}\r\n`;
   }
   function nomePlanilha(m) {
@@ -1880,7 +1901,8 @@ details.hist li + li { margin-top: 8px; }
       <p><b>PI.</b> PI Planning. Concluída no próprio PI: PI Entregue igual ao PI Planning. Carry-over: PI Entregue posterior. Horas: QtdHoras (estimativa).</p>
       <p><b>Pessoas.</b> Funcional e ABAP vêm no formato do SharePoint (nome;#id); fica o nome. Demanda com mais de uma pessoa conta para cada uma.</p>
       <p><b>Riscos.</b> Crítico: mais de ${m.LIM.dias} dias além do prazo da fase (nas prontas sem CAB, contado do pronto planejado), ou bloqueada sem data de pronto, estimativa nem status report. Atenção: demanda acima de ${m.LIM.horas} h com prazo em até ${m.LIM.perto} dias ou pronta sem CAB; ${m.LIM.uatDia} ou mais homologações no mesmo dia para o mesmo responsável Acelen; pessoa-chave (${Math.round(m.LIM.fatia * 100)}% ou mais das abertas do papel e, além disso, ${m.LIM.areas} áreas ou mais — não vale para responsável Acelen, que por desenho responde por uma área —, um terço ou mais das atrasadas ou pico acima de ${m.LIM.cargaDia} h por dia útil; com filtro, medida na esteira toda); regra de avanço do PI ${m.regra.desdePI} em diante (data real da fase anterior em toda demanda que saiu do Backlog; horas, tamanho e Nº do Charm a partir da construção). Info: abertas sem data na fase atual.</p>
-      <p><b>Planilha.</b> “Baixar planilha” em Todas as demandas leva as linhas do filtro da tabela (e do filtro do topo), em CSV com ponto e vírgula, datas dd/mm/aaaa e as lacunas de cadastro de cada demanda.</p>
+      <p><b>Farol</b> (Todas as demandas e planilha). Atrasado: a data que encerra a fase passou (inclusive com a data real lançada e a fase por atualizar, ou a CAB vencida) ou a demanda está bloqueada. Atenção: vence em até 7 dias ou está sem data na fase atual, Pré Projeto incluído. No prazo: os demais casos e as concluídas. Conclusão fase atual: a data planejada que encerra a fase; na concluída, a Data de Entrega Pronto planejada. Baseline: Sprint Baseline Pronto/Em Encerramento.</p>
+      <p><b>Planilha.</b> “Baixar planilha” em Todas as demandas leva as linhas do filtro da tabela (e do filtro do topo), em CSV com ponto e vírgula e datas dd/mm/aaaa. As dez primeiras colunas são as da tabela; depois vêm marco e dias até a conclusão, subfase, situação e motivo, Sprint real, Funcional, ABAP, status report e as lacunas de cadastro de cada demanda.</p>
       <p><b>Comparação.</b> Cada exportação carregada fica guardada com a data de corte. A seção de mudanças compara a exportação aberta com a anterior, demanda a demanda, pelo NumeroDemanda (e pelo título, quando o número se repete).</p>
     </div></div>`;
   }

@@ -80,8 +80,15 @@ Encerramento). Área × PI continua com todas as áreas e PIs, com a seleção e
   regra de avanço do PI 4. Info: abertas sem data na fase atual.
 - **Regra de avanço do PI 4 em diante** (decisão do board de 28/09/2026): a data real da fase anterior em
   toda demanda que saiu do Backlog; horas, tamanho e Nº do Charm a partir da construção.
+- **Todas as demandas**: Código · Descrição · Área · PI · Fase · Farol · Conclusão fase atual · Baseline ·
+  Horas · Resp. Acelen. **Farol**: Atrasado = a data que encerra a fase passou (inclusive com a data real
+  lançada e a fase por atualizar, ou a CAB vencida) ou bloqueada; Atenção = vence em até 7 dias ou sem
+  data na fase atual (Pré Projeto incluído); No prazo = os demais e as concluídas. **Conclusão fase
+  atual** = a data planejada que encerra a fase (na concluída, o pronto planejado). **Baseline** = Sprint
+  Baseline Pronto/Em Encerramento.
 - **Planilha**: "Baixar planilha (.csv)" em Todas as demandas leva as linhas dos dois filtros, com `;`,
-  BOM e datas dd/mm/aaaa. No artifact sai pela capacidade `downloads`.
+  BOM e datas dd/mm/aaaa; as dez primeiras colunas são as da tabela. No artifact sai pela capacidade
+  `downloads`.
 - **Tempo real de entrega**: Data Início Real até Data Concluído Real (ou Data CAB), nas concluídas;
   mediana e 85%.
 
