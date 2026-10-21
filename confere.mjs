@@ -4,6 +4,7 @@
 //   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle  estraga uma demanda e PRECISA reprovar
 //   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-subfase  põe uma demanda na subfase errada e PRECISA reprovar
 //   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-calculo  estraga uma conta de carga e PRECISA reprovar
+//   node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-leitura  estraga a cobertura do prazo e o pedido da semana e PRECISA reprovar
 //   ... --ponto=2026-09-28:95   medição anterior de prontas ou concluídas, para imprimir o ritmo e a previsão
 //
 // Roda o mesmo código que a página roda; nada de reimplementar a regra aqui. O que se confere
@@ -30,6 +31,7 @@ const snap = E.normalizar(await E.lerXlsx(buf.buffer.slice(buf.byteOffset, buf.b
 if (modo === '--controle') snap.demandas[0].fase = 'Fase que não existe';
 const m = E.analisar(snap, null, pontos);
 if (modo === '--controle-calculo') m.cargas.abap.find((o) => o.pico).pico.horas += 10;
+if (modo === '--controle-leitura') { Object.values(m.aderencia[2].porPI)[0].base++; m.leitura.pedido = m.acao.at(-1); }
 if (modo === '--controle-subfase') {
   const d = m.ds.find((x) => x.etapa);
   d.etapa = d.etapa === 'preprojeto' ? 'preparacao' : 'preprojeto';
@@ -98,6 +100,21 @@ for (const [lado, [campo, horas, tipos]] of Object.entries(PAPEIS)) {
     confere(o.pico.du === Math.max(1, E.diasUteis(c, E.dia(o.pico.ate))) && Math.abs(o.pico.porDia * o.pico.du - o.pico.horas) < 1e-6, `carga ${lado}: pico de ${o.nome} não fecha`);
   }
 }
+// - prazo planejado × real: medidas ≤ base, e os PIs fecham com a fase; a base de Pronto tem todas as concluídas;
+const ORDEM = { backlog: 0, refinamento: 1, construcao: 2, homologacao: 3, pronto: 4, concluido: 5 };
+m.aderencia.forEach((a, i) => {
+  const pi = Object.values(a.porPI);
+  confere(a.ok <= a.n && a.n <= a.base && pi.reduce((s, o) => s + o.base, 0) === a.base && pi.reduce((s, o) => s + o.n, 0) === a.n && pi.reduce((s, o) => s + o.ok, 0) === a.ok, `prazo ${a.nome}: medidas, base e PIs não fecham`);
+  confere(a.base === m.ds.filter((d) => ORDEM[E.faseTipo(d.fase)] > i + 1 || (d[a.campoR] && E.dia(d[a.campoR]) <= c)).length, `prazo ${a.nome}: base fora da regra`);
+});
+confere(m.aderencia[3].base >= m.concl.length, 'prazo Pronto: a base precisa ter todas as concluídas');
+// - leitura: a última milha são as prontas; o pedido é o grupo (fora "vence", 3 ou mais) com mais horas.
+const L = m.leitura;
+confere(L.fila.ultima.n === m.prontas.length, `leitura: última milha ${L.fila.ultima.n}, prontas ${m.prontas.length}`);
+confere(L.fila.antes.n === m.ds.filter((d) => ['refinamento', 'construcao', 'homologacao'].includes(E.faseTipo(d.fase))).length, 'leitura: antes do pronto não fecha com Refinamento + Construção + Homologação');
+const horasDe = (g) => g.itens.reduce((s, d) => s + (d.horas || 0), 0);
+const elegiveis = m.acao.filter((g) => g.k !== 'vence' && g.itens.length >= 3);
+confere((L.pedido?.k ?? null) === (elegiveis.length ? elegiveis.reduce((a, b) => (horasDe(b) > horasDe(a) || (horasDe(b) === horasDe(a) && b.itens.length > a.itens.length) ? b : a)).k : null), `leitura: pedido ${L.pedido?.k}, esperado o grupo com mais horas`);
 // - tempo de entrega: nenhuma duração negativa e mediana ≤ 85% ≤ máximo.
 if (m.lead.n) confere(m.lead.mediana >= 0 && (m.lead.p85 == null || (m.lead.mediana <= m.lead.p85 && m.lead.p85 <= m.lead.maximo)), 'tempo de entrega: mediana, 85% e máximo fora de ordem');
 
@@ -106,7 +123,8 @@ console.log('situação', m.st);
 console.log('etapas  ', Object.fromEntries(m.etapas.map((e) => [e.k, e.n])), 'fora', m.fora);
 console.log('horas   ', m.horas);
 console.log('PIs     ', m.pis.map((p) => `${p.pi}: ${p.n} (${p.concl} concl., ${p.proprio} no próprio PI, ciclo ${p.ciclo})`).join(' | '));
-console.log('aderência', m.aderencia.map((a) => `${a.nome} ${a.ok}/${a.n}`).join(' | '));
+console.log('aderência', m.aderencia.map((a) => `${a.nome} ${a.ok}/${a.n} de ${a.base} (${Object.entries(a.porPI).map(([k, o]) => `${k} ${o.n}/${o.base}`).join(' ')})`).join(' | '));
+console.log('leitura ', `fila ${L.fila.antes.n} (${L.fila.antes.horas} h) antes do pronto × ${L.fila.ultima.n} (${L.fila.ultima.horas} h) na última milha · prazo pior ${L.prazo?.pior.nome} melhor ${L.prazo?.melhor.nome} · pedido ${L.pedido?.k} ${L.pedido?.itens.length} (${L.pedido?.horas} h)`);
 console.log('ação    ', m.acao.map((g) => `${g.k} ${g.itens.length}`).join(' | '));
 console.log('cadastro', m.cadastro.map((c) => `${c.campo} ${c.itens.length}`).join(' | '));
 const pv = m.previsao;
