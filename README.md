@@ -33,6 +33,17 @@ lê ou escreve no Supabase do PPMA.
   Data CAB é Preparação final, com CAB futura é Implantação, com CAB que já passou é Encerramento.
   Em Refinamento é Planejamento. Concluídas saíram do fluxo; bloqueadas e canceladas ficam fora dele.
   A tabela fica em `ETAPAS`, no núcleo.
+- **Leitura da semana**: frases de modelo fixo preenchidas por regra. Fila = demandas em Planejamento,
+  Construção e Homologação × prontas sem encerrar; Prazo = a fase medida (5 ou mais) com menor e maior
+  % no prazo, com a ressalva de cobertura; PI = PI anterior com o último pronto planejado vencido e
+  demanda aberta, e o PI em execução; Pedido = o grupo de Pedem ação (fora "vencem em 7 dias", 3 ou mais
+  demandas) com mais horas. "Copiar texto da semana" leva isso, os grupos de Pedem ação, as mudanças
+  desde a exportação anterior e as próximas 2 semanas.
+- **Cobertura do prazo planejado × real**: medidas ÷ demandas que já passaram da fase (ou têm a data
+  real dela). PI com 5 ou mais que passaram e menos da metade medida aparece como "pouco medido".
+- **Cobrar** (seção Pessoas): copia as abertas da pessoa com o pedido de cada uma (encerrar, atualizar a
+  fase, agendar a CAB, preencher data, status report ou horas). Sem tabela de quem faz o quê por papel,
+  o pedido vale para todas as pessoas da demanda.
 - **Prazo planejado × real**, **cadência por PI**, **CABs por mês**, **área × PI**, **pessoas**,
   **replanejamento** e **qualidade do cadastro** seguem o método do board executivo de 28/09/2026.
 - **Fechamento do PI**: ritmo necessário (faltam ÷ dias úteis até o último pronto planejado) e ritmo
@@ -54,6 +65,8 @@ lê ou escreve no Supabase do PPMA.
 node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx>              # imprime os números, confere as partições
 node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle          # fase desconhecida: precisa reprovar
 node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-subfase  # demanda na subfase errada: precisa reprovar
+node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-calculo  # conta de carga errada: precisa reprovar
+node relatorios/esteira-acelen/confere.mjs <exportacao.xlsx> --controle-leitura  # cobertura e pedido errados: precisa reprovar
 ```
 
 O verificador roda o mesmo `<script id="nucleo">` da página e confere a subfase de cada demanda
