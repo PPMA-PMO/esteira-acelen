@@ -248,8 +248,11 @@ section { min-width: 0; }
 /* barra com traço de referência (8 h por dia útil), como a tela Recursos do PPMA v2 */
 .bar-ref { position: relative; }
 .bar-ref > i { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink-1); border-radius: 1px; }
-.mini b.st-critical, .mini b.st-on-track { font-size: 22px; }
-.pico { color: var(--warn-ink); }
+.mini span > span { display: inline; margin-top: 0; }
+.mini .st-on-track { color: var(--on-track); }
+.mini .st-critical { color: var(--critical); }
+.tbl .grp .pico { color: var(--warn-ink); margin-left: 0; }
+.tbl .grp .crit-txt { color: var(--critical); margin-left: 0; }
 
 /* CABs por mês */
 .colunas { display: flex; align-items: flex-end; gap: 6px; height: 170px; padding: 8px 20px 0; }
@@ -298,7 +301,7 @@ details.hist li + li { margin-top: 8px; }
   .vazio svg { width: 72px; height: 72px; }
   .filtros .conta { margin-left: 0; width: 100%; }
   .linha { grid-template-columns: minmax(0, 1fr) auto; }
-  .linha .bar { grid-column: 1 / -1; grid-row: 2; }
+  .linha > .bar, .linha > .bar-ref { grid-column: 1 / -1; grid-row: 2; }
   .linha .sub { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
@@ -626,7 +629,14 @@ details.hist li + li { margin-top: 8px; }
     const [campo, marco] = PRAZO[t];
     if (!d[campo]) return { st: t === 'pronto' ? 'semcab' : t === 'backlog' ? 'aguardando' : 'semdata', marco };
     const n = dia(d[campo]) - c;
-    return { st: n < 0 ? 'atrasada' : n <= 7 ? 'vence' : 'noprazo', marco, prazo: d[campo], dias: n };
+    if (n < 0) {
+      // O que a demanda que passou da data precisa: encerrar (pronta com a CAB vencida), atualizar a
+      // fase (a data real da própria fase já foi lançada até o corte) ou andar de fato.
+      const real = { backlog: 'r_inicio', refinamento: 'r_refinamento', construcao: 'r_construcao', homologacao: 'r_homologacao' }[t];
+      const motivo = t === 'pronto' ? 'encerrar' : real && d[real] && dia(d[real]) <= c ? 'atualizar' : 'atrasada';
+      return { st: 'atrasada', motivo, marco, prazo: d[campo], dias: n };
+    }
+    return { st: n <= 7 ? 'vence' : 'noprazo', marco, prazo: d[campo], dias: n };
   }
 
   // O Fluxo Macro dos Projetos do PMO: 4 fases, 8 subfases, e de onde vem cada subfase na
@@ -680,6 +690,11 @@ details.hist li + li { margin-top: 8px; }
       for (const [k, nome] of MARCOS) {
         if (a[k] && d[k] && a[k] !== d[k]) itens.push({ tipo: 'replan', d, nome, de: a[k], para: d[k], dias: dia(d[k]) - dia(a[k]) });
       }
+      if ((a.piPlan || '') !== (d.piPlan || '')) itens.push({ tipo: 'pi', d, de: a.piPlan || 'sem PI', para: d.piPlan || 'sem PI' });
+      for (const [k, nome] of [['respAcelen', 'Resp. Acelen'], ['funcional', 'Funcional'], ['abap', 'ABAP']]) {
+        const de = [].concat(a[k] || []).join(', '), para = [].concat(d[k] || []).join(', ');
+        if (de !== para) itens.push({ tipo: 'pessoa', d, nome, de: de || '—', para: para || '—' });
+      }
       if (d.st === 'atrasada' && a.st !== 'atrasada') itens.push({ tipo: 'atrasou', d });
     }
     const agora = new Set(ds.map((d) => d.chave));
@@ -713,7 +728,10 @@ details.hist li + li { margin-top: 8px; }
     return a[lo] + (a[Math.ceil(i)] - a[lo]) * (i - lo);
   };
   // O que entra na série do ritmo: quantas demandas estão prontas ou já em produção.
-  const resumo = (snap) => ({ prontasOuConcluidas: snap.demandas.filter((d) => ['pronto', 'concluido'].includes(faseTipo(d.fase))).length, total: snap.demandas.length });
+  const resumo = (snap) => {
+    const ok = snap.demandas.filter((d) => ['pronto', 'concluido'].includes(faseTipo(d.fase)));
+    return { prontasOuConcluidas: ok.length, total: snap.demandas.length, porPI: contar(ok, (d) => d.piPlan || 'Sem PI') };
+  };
 
   function analisar(snap, ant, pontos) {
     const c = dia(snap.corte);
@@ -728,10 +746,13 @@ details.hist li + li { margin-top: 8px; }
     const etapas = ETAPAS.map((e) => { const x = ds.filter((d) => d.etapa === e.k); return { ...e, n: x.length, horas: somaH(x) }; });
     const fora = contar(ds.filter((d) => !d.etapa && d.st !== 'concluida'), (d) => d.fase || '(sem fase)');
 
+    const atrasadas = (motivo) => ds.filter((d) => d.motivo === motivo).sort((a, b) => a.dias - b.dias);
     const acao = [
       { k: 'bloqueada', titulo: 'Bloqueadas', nota: 'fora do fluxo até alguém destravar', itens: ds.filter((d) => d.st === 'bloqueada') },
-      { k: 'atrasada', titulo: 'Passaram da data da fase', nota: 'a data planejada que encerra a fase atual já passou', itens: ds.filter((d) => d.st === 'atrasada').sort((a, b) => a.dias - b.dias) },
+      { k: 'atrasada', titulo: 'Atrasadas', nota: 'a data que encerra a fase passou e nada foi lançado', itens: atrasadas('atrasada') },
+      { k: 'encerrar', titulo: 'CAB passou: confirmar a subida e encerrar', nota: 'prontas com a data de CAB vencida', itens: atrasadas('encerrar') },
       { k: 'semcab', titulo: 'Prontas sem CAB agendada', nota: 'construídas, sem data de subida', itens: ds.filter((d) => d.st === 'semcab').sort((a, b) => (a.p_pronto || '9').localeCompare(b.p_pronto || '9')) },
+      { k: 'atualizar', titulo: 'Fase por atualizar', nota: 'a data real da fase já foi lançada, mas a fase não andou', itens: atrasadas('atualizar') },
       { k: 'vence', titulo: 'Vencem nos próximos 7 dias', nota: 'a data da fase cai até uma semana depois do corte', itens: ds.filter((d) => d.st === 'vence').sort((a, b) => a.dias - b.dias) },
     ].filter((g) => g.itens.length);
     acao.forEach((g) => { g.semStatus = g.itens.filter((d) => !d.statusReport).length; });
@@ -847,82 +868,126 @@ details.hist li + li { margin-top: 8px; }
       { campo: 'Fase × data real', derivado: true, itens: incoerentes, base: null, efeito: 'tem data real de uma etapa que a fase ainda não alcançou: a fase ficou para trás' },
     ].filter((x) => x.itens.length);
 
-    // Fechamento do PI mais recente. Ritmo = quantas demandas a mais ficaram prontas ou concluídas,
-    // na esteira toda, por dia útil, desde a medição mais antiga das últimas 4 semanas.
+    // Fechamento do PI mais recente. Ritmo = quantas demandas a mais ficaram prontas ou concluídas por
+    // dia útil, desde a medição mais antiga feita entre 7 e 28 dias antes do corte. Há dois ritmos: o da
+    // esteira toda e o do próprio PI, porque a esteira pode estar fechando outro PI (como o PI 3 em out/26).
     const piAtual = pis.filter((x) => x.pi !== 'Sem PI').at(-1) || null;
     let previsao = null;
     if (piAtual) {
       const doPI = ds.filter((d) => (d.piPlan || 'Sem PI') === piAtual.pi);
       const faltam = doPI.filter((d) => d.st !== 'concluida' && d.st !== 'cancelada' && d.tipo !== 'pronto');
       const ultimo = doPI.map((d) => d.p_pronto).filter(Boolean).sort().at(-1) || null;
-      const duAte = ultimo && dia(ultimo) > c ? diasUteis(c, dia(ultimo)) : 0;
-      const agora = resumo(snap).prontasOuConcluidas;
-      const base = (pontos || []).filter((x) => x.corte < snap.corte && dia(x.corte) >= c - 28 && diasUteis(dia(x.corte), c) >= 5)
+      const passou = !!ultimo && dia(ultimo) <= c;
+      const duAte = ultimo && !passou ? Math.max(1, diasUteis(c, dia(ultimo))) : null;
+      const r = resumo(snap);
+      const base = (pontos || []).filter((x) => x.corte < snap.corte && c - dia(x.corte) >= 7 && c - dia(x.corte) <= 28)
         .sort((a, b) => a.corte.localeCompare(b.corte))[0] || null;
-      const du = base ? diasUteis(dia(base.corte), c) : null;
-      const ritmo = base ? (agora - base.prontasOuConcluidas) / du : null;
-      const prevista = ritmo > 0 ? isoDe(somaUteis(c, Math.ceil(faltam.length / ritmo))) : null;
+      const du = base ? Math.max(1, diasUteis(dia(base.corte), c)) : null;
+      const delta = base ? r.prontasOuConcluidas - base.prontasOuConcluidas : null;
+      const deltaPI = base && base.porPI ? (r.porPI[piAtual.pi] || 0) - (base.porPI[piAtual.pi] || 0) : null;
+      // em inteiros: faltam ÷ (delta ÷ du) em ponto flutuante às vezes passa um dia
+      const dataEm = (dd) => (dd > 0 ? isoDe(somaUteis(c, Math.ceil((faltam.length * du) / dd))) : null);
+      const prevista = dataEm(delta);
       previsao = {
         pi: piAtual.pi, faltam: faltam.length, horas: somaH(faltam), semEst: faltam.filter((d) => d.horas == null).length,
         semPronto: faltam.filter((d) => !d.p_pronto).length, bloqueadas: faltam.filter((d) => d.st === 'bloqueada').length,
-        ultimo, duAte, necessario: duAte ? faltam.length / duAte : null, agora, base: base && { ...base, du }, ritmo, prevista,
+        ultimo, passou, duAte, duPassou: passou ? diasUteis(dia(ultimo), c) : null, necessario: duAte ? faltam.length / duAte : null,
+        agora: r.prontasOuConcluidas, agoraPI: r.porPI[piAtual.pi] || 0, base: base && { ...base, du }, delta, deltaPI,
+        ritmo: base ? delta / du : null, ritmoPI: deltaPI != null ? deltaPI / du : null, prevista, previstaPI: dataEm(deltaPI),
         folga: prevista && ultimo ? (prevista > ultimo ? diasUteis(dia(ultimo), dia(prevista)) : -diasUteis(dia(prevista), dia(ultimo))) : null,
+        planoIncompleto: faltam.filter((d) => !d.p_pronto).length * 2 > faltam.length,
       };
     }
 
-    // Carga até a construção: horas por papel das demandas que ainda vão ser construídas, divididas
-    // pelos dias úteis até a última data de fim de construção (ou de pronto) da pessoa.
-    function carga(campoPessoa, campoHoras) {
+    // Carga: horas do papel nas demandas que ainda vão ser feitas, divididas entre as pessoas da
+    // demanda, contra os dias úteis até cada data de entrega. Mostra o pico: o pior ponto acumulado,
+    // que a média até a última data esconde. ABAP vai até o fim da construção; funcional, até o pronto.
+    function carga(campoPessoa, campoHoras, tipos, fimDe) {
       const m = new Map();
-      ds.filter((d) => ['backlog', 'refinamento', 'construcao'].includes(d.tipo)).forEach((d) => (d[campoPessoa] || []).forEach((nome) => {
-        const o = m.get(nome) || { nome, horas: 0, n: 0, fim: null, semData: 0, semDataN: 0, semEst: 0 };
-        const fim = d.p_construcao || d.p_pronto || null;
-        const h = d[campoHoras];
-        if (h == null) o.semEst++;
-        else if (!fim) { o.semData += h; o.semDataN++; } else { o.horas += h; o.n++; if (!o.fim || fim > o.fim) o.fim = fim; }
-        m.set(nome, o);
-      }));
+      ds.filter((d) => tipos.includes(d.tipo)).forEach((d) => {
+        const nomes = d[campoPessoa] || [];
+        nomes.forEach((nome) => {
+          const o = m.get(nome) || { nome, itens: [], semData: 0, semEst: 0, dividida: 0 };
+          const h = d[campoHoras];
+          const fim = fimDe(d);
+          if (h == null) o.semEst++;
+          else if (!fim) o.semData += h / nomes.length;
+          else { o.itens.push({ d, h: h / nomes.length, fim }); if (nomes.length > 1) o.dividida++; }
+          m.set(nome, o);
+        });
+      });
       return [...m.values()].map((o) => {
-        const du = o.fim ? Math.max(1, diasUteis(c, dia(o.fim))) : null;
-        return { ...o, du, venceu: !!o.fim && dia(o.fim) <= c, porDia: du ? o.horas / du : null };
+        const its = o.itens.sort((a, b) => a.fim.localeCompare(b.fim));
+        let acum = 0, pico = null;
+        its.forEach((x, i) => {
+          acum += x.h;
+          if (its[i + 1] && its[i + 1].fim === x.fim) return;
+          const du = Math.max(1, diasUteis(c, dia(x.fim)));
+          if (!pico || acum / du > pico.porDia) pico = { porDia: acum / du, ate: x.fim, horas: acum, du };
+        });
+        return {
+          nome: o.nome, horas: its.reduce((t, x) => t + x.h, 0), n: its.length, fim: its.length ? its.at(-1).fim : null,
+          semData: o.semData, semEst: o.semEst, dividida: o.dividida, pico, porDia: pico ? pico.porDia : null, venceu: !!pico && dia(pico.ate) < c,
+        };
       }).sort((a, b) => (b.porDia ?? -1) - (a.porDia ?? -1) || b.semData - a.semData || porNome(a.nome, b.nome));
     }
-    const cargas = { funcional: carga('funcional', 'horasFunc'), abap: carga('abap', 'horasAbap') };
+    const cargas = {
+      abap: carga('abap', 'horasAbap', ['backlog', 'refinamento', 'construcao'], (d) => d.p_construcao || d.p_pronto || null),
+      funcional: carga('funcional', 'horasFunc', ['backlog', 'refinamento', 'construcao', 'homologacao'], (d) => d.p_pronto || d.p_homologacao || d.p_construcao || null),
+    };
 
-    // Agenda de homologação: a Data de Entrega Homologação das demandas que ainda não homologaram.
-    const uatItens = ds.filter((d) => ['backlog', 'refinamento', 'construcao', 'homologacao'].includes(d.tipo) && d.p_homologacao && !d.r_homologacao)
-      .map((d) => ({ d, data: d.p_homologacao, dias: dia(d.p_homologacao) - c })).filter((x) => x.dias <= 42)
-      .sort((a, b) => a.data.localeCompare(b.data) || porNome(a.d.id, b.d.id));
-    const porResp = new Map();
-    uatItens.forEach((x) => { const k = x.d.respAcelen || 'Sem responsável Acelen'; if (!porResp.has(k)) porResp.set(k, []); porResp.get(k).push(x); });
+    // Agenda de homologação: as demandas que ainda vão homologar, com a Data de Entrega Homologação
+    // quando existe. Data que o próprio plano desmente vira "replanejar" e não conta como pico.
+    const antesUat = ds.filter((d) => ['backlog', 'refinamento', 'construcao', 'homologacao'].includes(d.tipo) && !d.r_homologacao);
+    const uatItens = antesUat.filter((d) => d.p_homologacao).map((d) => {
+      const dias = dia(d.p_homologacao) - c;
+      const inviavel = dias < 0 ? null : d.p_construcao && d.p_homologacao < d.p_construcao ? { tipo: 'antes', data: d.p_construcao }
+        : d.motivo === 'atrasada' ? { tipo: 'fase', marco: d.marco, data: d.prazo } : null;
+      return { d, data: d.p_homologacao, dias, inviavel };
+    }).filter((x) => x.dias <= 42).sort((a, b) => a.data.localeCompare(b.data) || porNome(a.d.id, b.d.id));
+    const semDataUat = contar(antesUat.filter((d) => !d.p_homologacao), (d) => d.respAcelen || 'Sem responsável Acelen');
+    const nomesUat = [...new Set([...uatItens.map((x) => x.d.respAcelen || 'Sem responsável Acelen'), ...Object.keys(semDataUat)])];
     const uat = {
-      total: uatItens.length, vencidas: uatItens.filter((x) => x.dias < 0).length,
-      grupos: [...porResp].map(([nome, itens]) => ({ nome, itens, picos: Object.entries(contar(itens, (x) => x.data)).filter(([, n]) => n > 1).map(([data, n]) => ({ data, n })) }))
-        .sort((a, b) => b.itens.length - a.itens.length || porNome(a.nome, b.nome)),
+      total: uatItens.filter((x) => x.dias >= 0).length, vencidas: uatItens.filter((x) => x.dias < 0).length,
+      replanejar: uatItens.filter((x) => x.inviavel).length, semData: antesUat.filter((d) => !d.p_homologacao).length, antes: antesUat.length,
+      grupos: nomesUat.map((nome) => {
+        const itens = uatItens.filter((x) => (x.d.respAcelen || 'Sem responsável Acelen') === nome);
+        const validas = itens.filter((x) => x.dias >= 0 && !x.inviavel);
+        return { nome, itens, semData: semDataUat[nome] || 0, picos: Object.entries(contar(validas, (x) => x.data)).filter(([, n]) => n > 1).map(([data, n]) => ({ data, n })) };
+      }).sort((a, b) => b.itens.length - a.itens.length || b.semData - a.semData || porNome(a.nome, b.nome)),
     };
 
-    // Tempo real de entrega: do início registrado até a produção (Data Concluído Real ou, sem ela, Data CAB).
-    const entregas = concl.map((d) => ({ d, fim: d.r_concluido || d.cab || null }))
-      .filter((x) => x.d.r_inicio && x.fim && dia(x.fim) <= c)
-      .map((x) => ({ ...x, dias: dia(x.fim) - dia(x.d.r_inicio), plan: x.d.p_inicio && x.d.p_pronto ? dia(x.d.p_pronto) - dia(x.d.p_inicio) : null }));
-    const tempo = (xs) => ({ n: xs.length, mediana: mediana(xs.map((x) => x.dias)), p85: xs.length >= 5 ? percentil(xs.map((x) => x.dias), 0.85) : null });
+    // Tempo de entrega: do início registrado até a subida (Data CAB até o corte; sem ela, Data Concluído
+    // Real), coerente com o trilho, onde a CAB é a implantação. O plano termina no pronto; o passo do pronto
+    // planejado até a subida aparece à parte, para não ser lido como atraso.
+    const entregas = [], invertidas = [];
+    concl.forEach((d) => {
+      const fim = d.cab && dia(d.cab) <= c ? d.cab : d.r_concluido && dia(d.r_concluido) <= c ? d.r_concluido : null;
+      if (!d.r_inicio || !fim) return;
+      const dias = dia(fim) - dia(d.r_inicio);
+      if (dias < 0) { invertidas.push(d); return; }
+      entregas.push({ d, fim, dias, plan: d.p_inicio && d.p_pronto ? dia(d.p_pronto) - dia(d.p_inicio) : null, aposPronto: d.p_pronto ? dia(fim) - dia(d.p_pronto) : null });
+    });
+    const tempo = (xs) => ({ n: xs.length, mediana: mediana(xs.map((x) => x.dias)), p85: xs.length >= 5 ? percentil(xs.map((x) => x.dias), 0.85) : null, maximo: xs.length ? Math.max(...xs.map((x) => x.dias)) : null });
     const lead = {
-      ...tempo(entregas), plan: mediana(entregas.filter((x) => x.plan != null).map((x) => x.plan)), base: concl.length,
+      ...tempo(entregas), plan: mediana(entregas.filter((x) => x.plan != null).map((x) => x.plan)),
+      aposPronto: mediana(entregas.filter((x) => x.aposPronto != null).map((x) => x.aposPronto)), base: concl.length,
+      porCab: entregas.filter((x) => x.fim === x.d.cab).length,
       porPI: nomesPI.map((pi) => ({ pi, ...tempo(entregas.filter((x) => (x.d.piPlan || 'Sem PI') === pi)) })).filter((x) => x.n),
-      inicioCopiado: ds.filter((d) => d.r_inicio && d.p_inicio && d.r_inicio === d.p_inicio).length,
-      comInicio: ds.filter((d) => d.r_inicio && d.p_inicio).length,
+      inicioCopiado: entregas.filter((x) => x.d.p_inicio && x.d.r_inicio === x.d.p_inicio).length, invertidas,
     };
+    if (invertidas.length) cadastro.push({ campo: 'Início real depois da subida', derivado: true, itens: invertidas, base: null, efeito: 'duração negativa; fica fora do tempo de entrega' });
 
     return {
       snap, corte: snap.corte, ds, abertas, concl, prontas, st, etapas, fora, acao, pis, aderencia, meses, proximas, areas,
-      pessoas, replan, qualidade, cadastro, repetidos, previsao, cargas, uat, lead,
+      pessoas, replan, qualidade, cadastro, repetidos, previsao, cargas, uat, lead, motivos: contar(ds.filter((d) => d.motivo), (d) => d.motivo),
       horas: { total: somaH(ds), concl: somaH(concl), abertas: somaH(abertas), prontas: somaH(prontas), abertasSemEst: sem(abertas, 'horas').length },
       piAtual,
       delta: ant ? comparar(ds, ant) : null,
     };
   }
 
-  globalThis.Esteira = { lerXlsx, normalizar, analisar, resumo, ETAPAS, ESTAGIOS, CAMPOS, dia, diasUteis, faseTipo, FUSO };
+  globalThis.Esteira = { lerXlsx, normalizar, analisar, resumo, ETAPAS, ESTAGIOS, CAMPOS, dia, diasUteis, somaUteis, faseTipo, FUSO };
 })();
 </script>
 
@@ -1016,7 +1081,14 @@ details.hist li + li { margin-top: 8px; }
     let titulo; const sub = [];
     if (atr) {
       titulo = `${pl(atr, 'demanda aberta passou', 'demandas abertas passaram')} da data`;
-      if (enc) sub.push(`${num(enc)} ${enc === 1 ? 'tem a data de CAB vencida e segue aberta' : 'têm a data de CAB vencida e seguem abertas'}.`);
+      const mo = m.motivos;
+      const partes = [
+        mo.encerrar && `${num(mo.encerrar)} ${mo.encerrar === 1 ? 'só espera' : 'só esperam'} o encerramento depois da CAB`,
+        mo.atualizar && `${num(mo.atualizar)} ${mo.atualizar === 1 ? 'já tem' : 'já têm'} a data real da fase e só falta atualizar a fase`,
+        mo.atrasada && `${num(mo.atrasada)} ${mo.atrasada === 1 ? 'está atrasada' : 'estão atrasadas'} de fato`,
+      ].filter(Boolean);
+      if (partes.length) sub.push(`${partes.slice(0, -1).join(', ')}${partes.length > 1 ? ' e ' : ''}${partes.at(-1)}.`.replace(/^./, (x) => x.toUpperCase()));
+      void enc;
     } else if (bloq) {
       titulo = `${pl(bloq, 'demanda bloqueada', 'demandas bloqueadas')}, nenhuma fora do prazo`;
     } else {
@@ -1056,12 +1128,13 @@ details.hist li + li { margin-top: 8px; }
       return;
     }
     const D = m.delta;
-    const ROT = { concluida: ['concluída', 'concluídas'], fase: ['mudou de fase', 'mudaram de fase'], subfase: ['mudou de subfase', 'mudaram de subfase'], replan: ['data replanejada', 'datas replanejadas'], atrasou: ['passou a atrasar', 'passaram a atrasar'], nova: ['nova na lista', 'novas na lista'], saiu: ['saiu da lista', 'saíram da lista'] };
-    const ordem = ['concluida', 'fase', 'subfase', 'replan', 'atrasou', 'nova', 'saiu'];
+    const ROT = { concluida: ['concluída', 'concluídas'], fase: ['mudou de fase', 'mudaram de fase'], subfase: ['mudou de subfase', 'mudaram de subfase'], pi: ['mudou de PI', 'mudaram de PI'], pessoa: ['troca de responsável', 'trocas de responsável'], replan: ['data replanejada', 'datas replanejadas'], atrasou: ['passou a atrasar', 'passaram a atrasar'], nova: ['nova na lista', 'novas na lista'], saiu: ['saiu da lista', 'saíram da lista'] };
+    const ordem = ['concluida', 'fase', 'subfase', 'pi', 'replan', 'pessoa', 'atrasou', 'nova', 'saiu'];
     const txt = (x) => ({
       nova: `entrou na lista · ${esc(x.d.fase)}`, saiu: 'saiu da lista', concluida: `${esc(x.de)} → Concluído`, fase: `${esc(x.de)} → ${esc(x.para)}`, subfase: `${esc(x.de)} → ${esc(x.para)} <em class="muted">(mesma fase na lista)</em>`,
       replan: `${esc(x.nome)}: ${dt(x.de)} → ${dt(x.para)} <em class="muted">(${x.dias > 0 ? '+' : ''}${x.dias} d)</em>`,
       atrasou: `passou da data · ${esc(x.d.marco)} ${dt(x.d.prazo)}`,
+      pi: `${esc(x.de)} → ${esc(x.para)}`, pessoa: `${esc(x.nome)}: ${esc(x.de)} → ${esc(x.para)}`,
     }[x.tipo]);
     const itens = [...D.itens].sort((a, b) => ordem.indexOf(a.tipo) - ordem.indexOf(b.tipo));
     el.innerHTML = secH(`Desde a exportação de ${dt(D.de, true)}`, pl(D.demandas, 'demanda mudou', 'demandas mudaram')) +
@@ -1164,36 +1237,55 @@ details.hist li + li { margin-top: 8px; }
     const p = m.previsao;
     if (!p) { $('#secPrevisao').innerHTML = ''; return; }
     const b = p.base;
-    const folga = p.folga == null ? '' : p.folga <= 0
-      ? `<span class="st-on-track">● ${pl(-p.folga, 'dia útil', 'dias úteis')} antes do último pronto planejado</span>`
-      : `<span class="st-critical">▲ ${pl(p.folga, 'dia útil', 'dias úteis')} depois do último pronto planejado</span>`;
-    $('#secPrevisao').innerHTML = secH(`Fechamento do ${esc(p.pi)}`, 'quando o PI chega a pronto, no ritmo de hoje') + `<div class="card"><div class="mini">
+    const ultimoTxt = !p.ultimo ? 'último pronto planejado: nenhuma demanda do PI tem data de pronto'
+      : p.passou ? `último pronto planejado · <span class="st-critical">▲ passou há ${pl(p.duPassou, 'dia útil', 'dias úteis')}</span>`
+      : `último pronto planejado · ${pl(p.duAte, 'dia útil', 'dias úteis')} a partir do corte`;
+    const incompleto = p.semPronto ? ` · ${num(p.semPronto)} das ${num(p.faltam)} sem data de pronto` : '';
+    const necessario = p.necessario != null ? `demanda por dia útil para chegar a pronto até ${dt(p.ultimo)}`
+      : p.passou ? 'ritmo necessário: o último pronto planejado já passou' : 'ritmo necessário: sem data de pronto no PI';
+    let ritmoTxt = 'ritmo real: precisa de uma medição (exportação ou referência) de 1 a 4 semanas antes do corte';
+    if (b) {
+      ritmoTxt = `na esteira toda: de ${num(b.prontasOuConcluidas)} para ${num(p.agora)} prontas ou concluídas entre ${dt(b.corte)} (${esc(b.fonte || 'exportação')}) e ${dt(m.corte)}`;
+      if (p.deltaPI != null) ritmoTxt += `. No próprio ${esc(p.pi)}: ${p.deltaPI > 0 ? '+' : ''}${num(p.deltaPI)} no período (${dec(p.ritmoPI)} por dia útil)${p.delta > 0 && p.deltaPI < p.delta ? `; as outras ${num(p.delta - p.deltaPI)} eram de outros PIs` : ''}`;
+    }
+    // A previsão é condicional e neutra: o ritmo é da esteira e o plano do PI pode estar incompleto.
+    let prevTxt = p.ritmo == null ? 'previsão: precisa do ritmo real' : 'sem previsão: o número de prontas ou concluídas não subiu';
+    if (p.prevista) {
+      prevTxt = `se a esteira inteira mantiver ${dec(p.ritmo)} por dia útil e trabalhar só no ${esc(p.pi)}`;
+      if (p.previstaPI && p.previstaPI !== p.prevista) prevTxt += `. No ritmo do próprio ${esc(p.pi)} até agora: ${dt(p.previstaPI)}`;
+      else if (p.deltaPI === 0) prevTxt += `. O ${esc(p.pi)} não ganhou nenhuma pronta no período`;
+      if (p.planoIncompleto) prevTxt += `. Não dá para comparar com o plano: ${num(p.semPronto)} das ${num(p.faltam)} não têm data de pronto`;
+      else if (p.folga != null) prevTxt += p.folga === 0 ? '. Cai no dia do último pronto planejado' : `. ${pl(Math.abs(p.folga), 'dia útil', 'dias úteis')} ${p.folga < 0 ? 'antes' : 'depois'} do último pronto planejado`;
+    }
+    $('#secPrevisao').innerHTML = secH(`Fechamento do ${esc(p.pi)}`, 'quando o PI chega a pronto') + `<div class="card"><div class="mini">
       <div><b>${num(p.faltam)}</b><span>${p.faltam === 1 ? 'demanda' : 'demandas'} do ${esc(p.pi)} antes de pronto · ${hh(p.horas)} estimadas${p.semEst ? ` (${num(p.semEst)} sem estimativa)` : ''}${p.bloqueadas ? ` · ${num(p.bloqueadas)} bloqueada${p.bloqueadas === 1 ? '' : 's'}` : ''}</span></div>
-      <div><b>${p.ultimo ? dt(p.ultimo) : '—'}</b><span>último pronto planejado${p.ultimo ? ` · ${pl(p.duAte, 'dia útil', 'dias úteis')} a partir do corte` : ''}${p.semPronto ? ` · ${num(p.semPronto)} das ${num(p.faltam)} sem data de pronto` : ''}</span></div>
-      <div><b>${p.necessario != null ? dec(p.necessario) : '—'}</b><span>${p.necessario != null ? `demanda por dia útil para chegar a pronto até ${dt(p.ultimo)}` : 'ritmo necessário: sem data de pronto futura no PI'}</span></div>
-      <div><b>${p.ritmo != null ? dec(p.ritmo) : '—'}</b><span>${b ? `demanda por dia útil de verdade: de ${num(b.prontasOuConcluidas)} para ${num(p.agora)} prontas ou concluídas entre ${dt(b.corte)} (${esc(b.fonte || 'exportação')}) e ${dt(m.corte)}` : 'ritmo real: aparece quando houver uma exportação de pelo menos uma semana antes'}</span></div>
-      <div><b>${p.prevista ? dt(p.prevista) : '—'}</b><span>${p.prevista ? `previsão no ritmo real${folga ? ` · ${folga}` : ''}` : p.ritmo != null ? 'sem previsão: o número de prontas ou concluídas não subiu' : 'previsão: precisa do ritmo real'}</span></div>
-    </div><p class="nota nota-pe">Ritmo real = aumento de demandas prontas ou concluídas na esteira toda, dividido pelos dias úteis entre a medição mais antiga das últimas 4 semanas e o corte. Previsão = faltam ÷ ritmo, contada em dias úteis a partir do corte. Bloqueadas contam como faltando; demanda sem data de pronto não entra no último pronto planejado. Dias úteis: segunda a sexta, sem feriados nacionais.</p></div>`;
+      <div><b>${p.ultimo ? dt(p.ultimo) : '—'}</b><span>${ultimoTxt}${incompleto}</span></div>
+      <div><b>${p.necessario != null ? dec(p.necessario) : '—'}</b><span>${necessario}</span></div>
+      <div><b>${p.ritmo != null ? dec(p.ritmo) : '—'}</b><span>${b ? `demanda por dia útil ${ritmoTxt}` : ritmoTxt}</span></div>
+      <div><b>${p.prevista ? dt(p.prevista) : '—'}</b><span>${prevTxt}</span></div>
+    </div><p class="nota nota-pe">Ritmo = aumento de demandas prontas ou concluídas dividido pelos dias úteis entre a medição mais antiga feita de 1 a 4 semanas antes e o corte. Previsão = faltam ÷ ritmo, em dias úteis a partir do corte (segunda a sexta, sem feriados nacionais). Bloqueadas contam como faltando.</p></div>`;
   }
 
   function renderLead(m) {
     const L = m.lead;
-    $('#secLead').innerHTML = secH('Tempo real de entrega', 'do início à produção, nas concluídas') + `<div class="card">${L.n ? `<div class="mini">
-      <div><b>${num(L.mediana)} d</b><span>mediana: metade das entregas levou até isso</span></div>
-      <div><b>${L.p85 != null ? `${num(Math.round(L.p85))} d` : '—'}</b><span>${L.p85 != null ? '85% entraram em produção em até' : '85%: precisa de 5 entregas ou mais'}</span></div>
-      <div><b>${L.plan != null ? `${num(L.plan)} d` : '—'}</b><span>planejado para as mesmas demandas (mediana de início → pronto)</span></div>
+    $('#secLead').innerHTML = secH('Tempo de entrega', 'da data de início à subida (CAB), nas concluídas') + `<div class="card">${L.n ? `<div class="mini">
+      <div><b>${num(L.mediana)} d</b><span>mediana: metade das entregas subiu em até isso</span></div>
+      <div><b>${L.p85 != null ? `${num(Math.round(L.p85))} d` : '—'}</b><span>${L.p85 != null ? '85% subiram em até' : '85%: precisa de 5 entregas ou mais'}</span></div>
+      <div><b>${L.plan != null ? `${num(L.plan)} d` : '—'}</b><span>planejado até o pronto, nas mesmas demandas${L.aposPronto != null ? `; a subida veio ${pl(L.aposPronto, 'dia', 'dias')} depois do pronto planejado (mediana)` : ''}</span></div>
     </div><div class="tbl-wrap" style="border-top:1px solid var(--border-soft)"><table class="tbl"><thead><tr><th>PI</th><th class="r">Entregas</th><th class="r">Mediana</th><th class="r">85% em até</th></tr></thead><tbody>${L.porPI.map((x) =>
-      `<tr><td>${esc(x.pi)}</td><td class="r">${num(x.n)}</td><td class="r">${num(x.mediana)} d</td><td class="r">${x.p85 != null ? `${num(Math.round(x.p85))} d` : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card-p nota">Nenhuma concluída tem data de início real e data de fim até o corte.</div>'}
-      <p class="nota nota-pe">${num(L.n)} de ${num(L.base)} concluídas têm início e fim. Fim = Data Concluído Real ou, sem ela, Data CAB. Início = Data Início Real${L.comInicio && L.inicioCopiado === L.comInicio ? `, que é igual à Data de Início planejada em ${num(L.inicioCopiado)} de ${num(L.comInicio)} demandas: o início real não é lançado à parte` : L.inicioCopiado ? ` (igual à planejada em ${num(L.inicioCopiado)} de ${num(L.comInicio)})` : ''}. 85% só aparece com 5 entregas ou mais.</p></div>`;
+      `<tr><td>${esc(x.pi)}</td><td class="r">${num(x.n)}</td><td class="r">${num(x.mediana)} d</td><td class="r">${x.p85 != null ? `${num(Math.round(x.p85))} d` : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card-p nota">Nenhuma concluída tem data de início real e data de subida até o corte.</div>'}
+      <p class="nota nota-pe">${num(L.n)} de ${num(L.base)} concluídas têm início e subida. Subida = Data CAB até o corte (${num(L.porCab)} das ${num(L.n)}); sem ela, Data Concluído Real. Início = Data Início Real${L.n && L.inicioCopiado === L.n ? `, igual à Data de Início planejada em todas as ${num(L.n)}: o início real não é lançado à parte` : L.inicioCopiado ? ` (igual à planejada em ${num(L.inicioCopiado)} das ${num(L.n)})` : ''}. 85% só aparece com 5 entregas ou mais.${L.invertidas.length ? ` ${pl(L.invertidas.length, 'demanda com início depois da subida ficou', 'demandas com início depois da subida ficaram')} de fora.` : ''}</p></div>`;
   }
 
   function renderAgenda(m) {
     const A = m.uat;
-    $('#secAgenda').innerHTML = secH('Agenda de homologação', `${pl(A.total, 'homologação planejada', 'homologações planejadas')} nas próximas 6 semanas, por responsável Acelen`) + `<div class="card">${A.total ? `<div class="tbl-wrap"><table class="tbl"><tbody>${A.grupos.map((g) =>
-      `<tr class="grp"><td colspan="4"><b>${esc(g.nome)}</b><span>${pl(g.itens.length, 'homologação', 'homologações')}${g.picos.map((x) => ` · <span class="pico">▲ ${num(x.n)} no mesmo dia (${dt(x.data)})</span>`).join('')}</span></td></tr>${g.itens.map((x) =>
-        `<tr${x.dias < 0 ? ' class="crit"' : ''}><td class="nw">${dt(x.data)}</td><td>${codBtn(x.d)}</td><td class="tit">${esc(x.d.titulo)}<small>hoje: ${esc(x.d.fase)}</small></td><td class="nw">${x.dias < 0 ? `<span class="st-critical">▲ vencida ${rel(x.dias)}</span>` : esc(rel(x.dias))}</td></tr>`).join('')}`).join('')}</tbody></table></div>`
-      : '<div class="card-p nota">Nenhuma homologação planejada nas próximas seis semanas.</div>'}
-      <p class="nota nota-pe">Data de Entrega Homologação das demandas que ainda não homologaram (sem data real de homologação). É a agenda de UAT que cada responsável na Acelen precisa reservar.</p></div>`;
+    const meta = `${pl(A.total, 'homologação com data', 'homologações com data')} nas próximas 6 semanas${A.vencidas ? ` · ▲ ${num(A.vencidas)} ${A.vencidas === 1 ? 'vencida' : 'vencidas'}` : ''}${A.semData ? ` · ${num(A.semData)} das ${num(A.antes)} que ainda vão homologar sem data` : ''}`;
+    const motivo = (x) => (x.inviavel.tipo === 'antes' ? `homologação antes do fim da construção (${dt(x.inviavel.data)})` : `${x.inviavel.marco.toLowerCase()} planejado para ${dt(x.inviavel.data)} ainda não aconteceu`);
+    $('#secAgenda').innerHTML = secH('Agenda de homologação', meta) + `<div class="card">${A.grupos.length ? `<div class="tbl-wrap"><table class="tbl"><tbody>${A.grupos.map((g) =>
+      `<tr class="grp"><td colspan="4"><b>${esc(g.nome)}</b><span>${g.itens.length ? pl(g.itens.length, 'homologação com data', 'homologações com data') : 'nenhuma com data'}${g.semData ? ` · +${num(g.semData)} sem data de homologação` : ''}${g.picos.map((x) => ` · <span class="pico">▲ ${num(x.n)} no mesmo dia (${dt(x.data)})</span>`).join('')}</span></td></tr>${g.itens.map((x) =>
+        `<tr${x.dias < 0 || x.inviavel ? ' class="crit"' : ''}><td class="nw">${dt(x.data)}</td><td>${codBtn(x.d)}</td><td class="tit">${esc(x.d.titulo)}<small>hoje: ${esc(x.d.fase)}${x.inviavel ? ` · <span class="st-critical">${esc(motivo(x))}</span>` : ''}</small></td><td class="nw">${x.dias < 0 ? `<span class="st-critical">▲ vencida ${rel(x.dias)}</span>` : x.inviavel ? '<span class="st-critical">▲ replanejar</span>' : esc(rel(x.dias))}</td></tr>`).join('')}`).join('')}</tbody></table></div>`
+      : '<div class="card-p nota">Nenhuma demanda ainda por homologar.</div>'}
+      <p class="nota nota-pe">Demandas que ainda vão homologar (sem data real de homologação), com a Data de Entrega Homologação planejada. "Replanejar": a data que o próprio plano desmente, porque cai antes do fim da construção ou a fase atual já está atrasada. Quem só tem demandas sem data aparece com "nenhuma com data": a agenda dessa pessoa ainda não existe.</p></div>`;
   }
 
   function renderCarga(m) {
@@ -1202,11 +1294,12 @@ details.hist li + li { margin-top: 8px; }
     const com = L.filter((o) => o.porDia != null);
     const sem = L.filter((o) => o.porDia == null);
     const escala = Math.max(16, ...com.map((o) => o.porDia));
-    $('#secCarga').innerHTML = secH('Carga até a construção', 'horas estimadas por dia útil') + `<div class="card"><div class="filtros" role="group" aria-label="Papel">${Object.entries(OP).map(([k, v]) => `<button type="button" class="chip" data-carga="${k}" aria-pressed="${estado.carga === k}">${v}</button>`).join('')}</div>
-      <div class="linhas">${com.length ? com.map((o) => `<div class="linha"><span class="nome" title="${esc(o.nome)}">${esc(o.nome)}</span><div class="bar-ref" role="img" aria-label="${esc(`${dec(o.porDia)} horas por dia útil`)}"><div class="bar lg"><span style="width:${(100 * o.porDia) / escala}%;background:${o.porDia > 8 ? 'var(--grad-alert)' : 'var(--e3)'}"></span></div><i style="left:${(100 * 8) / escala}%" aria-hidden="true"></i></div>
+    const ate = estado.carga === 'abap' ? 'fim da construção' : 'pronto';
+    $('#secCarga').innerHTML = secH('Carga das próximas entregas', `horas por dia útil até o ${ate}, no pior ponto`) + `<div class="card"><div class="filtros" role="group" aria-label="Papel">${Object.entries(OP).map(([k, v]) => `<button type="button" class="chip" data-carga="${k}" aria-pressed="${estado.carga === k}">${v}</button>`).join('')}</div>
+      <div class="linhas">${com.length ? com.map((o) => `<div class="linha"><span class="nome" title="${esc(o.nome)}">${esc(o.nome)}</span><div class="bar-ref" role="img" aria-label="${esc(`pico de ${dec(o.porDia)} horas por dia útil`)}"><div class="bar lg"><span style="width:${(100 * o.porDia) / escala}%;background:${o.porDia > 8 ? 'var(--grad-alert)' : 'var(--e3)'}"></span></div><i style="left:${(100 * 8) / escala}%" aria-hidden="true"></i></div>
         <span class="val">${o.porDia > 8 ? '<span class="st-critical">▲</span> ' : ''}<b>${num(Math.round(o.porDia * 10) / 10)} h</b> <span class="muted">por dia</span></span>
-        <span class="sub">${hh(o.horas)} em ${pl(o.n, 'demanda', 'demandas')} até ${dt(o.fim)}${o.venceu ? ' · <span class="st-critical">data já passou</span>' : ` · ${pl(o.du, 'dia útil', 'dias úteis')}`}${o.semData ? ` · +${hh(o.semData)} sem data` : ''}${o.semEst ? ` · ${num(o.semEst)} sem estimativa` : ''}</span></div>`).join('') : '<div class="card-p nota">Ninguém com horas e data até a construção.</div>'}</div>
-      <p class="nota nota-pe">${sem.length ? `Sem carga com data: ${sem.map((o) => `${esc(o.nome)} (${[o.semData && `${hh(o.semData)} sem data`, o.semEst && `${num(o.semEst)} sem estimativa`].filter(Boolean).join(', ')})`).join('; ')}. ` : ''}Horas ${estado.carga === 'abap' ? 'ABAP' : 'Funcional'} das demandas em Backlog, Em Refinamento e Em Construção, divididas pelos dias úteis até a última data de fim de construção (ou de pronto) da pessoa. É um teto: a lista só tem estimativa, sem horas apontadas, então o que já foi gasto conta como a fazer. O traço marca 8 h por dia útil, premissa e não a alocação real de cada pessoa.</p></div>`;
+        <span class="sub">${o.venceu ? `<span class="st-critical">${hh(o.pico.horas)} com data até ${dt(o.pico.ate)}, que já passou</span>` : `pico: ${hh(o.pico.horas)} até ${dt(o.pico.ate)} (${pl(o.pico.du, 'dia útil', 'dias úteis')})`}${o.pico.ate !== o.fim ? ` · ${hh(o.horas)} até ${dt(o.fim)}` : ''} · ${pl(o.n, 'demanda', 'demandas')}${o.dividida ? ` (${num(o.dividida)} dividida${o.dividida === 1 ? '' : 's'} com outra pessoa)` : ''}${o.semData ? ` · +${hh(o.semData)} sem data` : ''}${o.semEst ? ` · ${num(o.semEst)} sem estimativa` : ''}</span></div>`).join('') : '<div class="card-p nota">Ninguém com horas e data nas próximas entregas.</div>'}</div>
+      <p class="nota nota-pe">${sem.length ? `Sem carga com data: ${sem.map((o) => `${esc(o.nome)} (${[o.semData && `${hh(o.semData)} sem data`, o.semEst && `${num(o.semEst)} sem estimativa`].filter(Boolean).join(', ')})`).join('; ')}. ` : ''}Horas ${estado.carga === 'abap' ? 'ABAP das demandas em Backlog, Em Refinamento e Em Construção, até o fim da construção' : 'Funcional das demandas em Backlog, Em Refinamento, Em Construção e Em Homologação, até o pronto'}. Demanda com mais de uma pessoa tem as horas divididas entre elas. O pico é o pior ponto: as horas acumuladas até cada data de entrega, divididas pelos dias úteis até ela. É teto, não saldo: a lista só tem estimativa, sem horas apontadas. O traço marca 8 h por dia útil, premissa e não a alocação real.</p></div>`;
   }
 
   function renderPessoas(m) {
@@ -1387,6 +1480,9 @@ details.hist li + li { margin-top: 8px; }
     if (i < 0) return;
     try {
       const [snap, ant] = await Promise.all([snapDe(lista[i].id), lista[i + 1] ? snapDe(lista[i + 1].id) : null]);
+      // exportação antiga, gravada sem resumo, na janela do ritmo: lê para não depender da navegação
+      const c = E.dia(lista[i].corte);
+      await Promise.all(lista.filter((x) => !x.resumo && x.corte < lista[i].corte && c - E.dia(x.corte) <= 28).map((x) => snapDe(x.id)));
       if (!snap || !snap.demandas.length) { mostrarMsg('A exportação guardada veio vazia. Carregue o arquivo de novo.', true); return; }
       render(E.analisar(snap, ant && ant.demandas.length ? ant : null, pontos()));
     } catch (e) {
@@ -1457,9 +1553,9 @@ details.hist li + li { margin-top: 8px; }
     const chipSt = t.closest('[data-st]');
     if (chipSt && chipSt.classList.contains('chip')) { estado.filtro.st = chipSt.dataset.st; renderTodas(estado.modelo); return; }
     const chipC = t.closest('[data-carga]');
-    if (chipC) { estado.carga = chipC.dataset.carga; renderCarga(estado.modelo); return; }
+    if (chipC) { estado.carga = chipC.dataset.carga; renderCarga(estado.modelo); $(`#secCarga [data-carga="${estado.carga}"]`).focus(); return; }
     const chipP = t.closest('[data-pessoas]');
-    if (chipP) { estado.pessoas = chipP.dataset.pessoas; renderPessoas(estado.modelo); return; }
+    if (chipP) { estado.pessoas = chipP.dataset.pessoas; renderPessoas(estado.modelo); $(`#secPessoas [data-pessoas="${estado.pessoas}"]`).focus(); return; }
     const lin = t.closest('tr.lin');
     if (lin && !t.closest('a')) {
       const k = lin.dataset.k;
